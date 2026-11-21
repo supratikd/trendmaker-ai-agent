@@ -15,26 +15,26 @@ server.registerTool(
   "search_youtube_videos",
   {
     description:
-      "Search YouTube videos by keyword and return up to 10 " +
-      "video candidates ranked by actual view count. Defaults to short-form candidates.",
+      "Search YouTube by keyword and return up to 10 relevant videos marked Creative Commons " +
+      "and up to 3 minutes long, ranked by actual view count. This does not verify vertical " +
+      "Shorts format or independently establish ownership of all content.",
     inputSchema: {
       query: z.string().refine((value) => value.trim().length > 0, {
         message: "Query must not be blank.",
       }),
       maxResults: z.number().int().min(1).max(YOUTUBE.MAX_SEARCH_RESULTS).optional(),
-      duration: z.enum(["short", "any"]).optional(),
     },
   },
-  async ({ query, maxResults, duration }, { signal }) => {
+  async ({ query, maxResults }, { signal }) => {
+    console.error(`[MCP SERVER] Executing search_youtube_videos for: "${query}"`);
     try {
       const result = await searchYouTubeVideos(
         query,
         maxResults ?? YOUTUBE.MAX_SEARCH_RESULTS,
         process.env.YOUTUBE_API_KEY?.trim(),
         signal,
-        undefined,
-        duration ?? "short",
       );
+      console.error(`[MCP SERVER] Search complete. Candidates: ${result.results.length}`);
       return {
         content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
       };

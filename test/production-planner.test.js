@@ -33,7 +33,7 @@ const plan = () => ({
   videoDescription: "Video description",
   targetAudience: "General audience",
   videoDurationSeconds: 180,
-  aspectRatio: "16:9",
+  aspectRatio: "9:16",
   visualStyle: "Animated",
   scenes: [scene(1, 60), scene(2, 120)],
   musicDirection: "Upbeat",
@@ -88,6 +88,8 @@ test("rejects invalid target durations before calling Gemini", async (t) => {
   const fetch = mockGemini(t, JSON.stringify(plan()));
   await assert.rejects(generateVideoProductionPlan({ ...context, targetDuration: 0 }), /Target duration/);
   await assert.rejects(generateVideoProductionPlan({ ...context, targetDuration: 2.5 }), /Target duration/);
+  await assert.rejects(generateVideoProductionPlan({ ...context, targetDuration: 181 }), /Target duration/);
+  await assert.rejects(generateVideoProductionPlan(context, [{ durationSeconds: 181 }]), /Source videos/);
   assert.equal(fetch.mock.callCount(), 0);
 });
 
@@ -103,25 +105,43 @@ test("rejects empty or malformed Gemini output", async (t) => {
 });
 
 test("requires source-aware scenes to reference supplied candidates", async (t) => {
-  const sources = [{
-    order: 1, videoId: "source", title: "Source",
-    url: "https://www.youtube.com/watch?v=source",
-    durationSeconds: 30, reason: "Relevant title",
-  }];
+  const sources = [
+    {
+      order: 1, videoId: "source", license: "creativeCommon", title: "Source",
+      url: "https://www.youtube.com/watch?v=source",
+      durationSeconds: 120, reason: "Relevant title",
+    },
+    {
+      order: 2, videoId: "source2", license: "creativeCommon", title: "Source 2",
+      url: "https://www.youtube.com/watch?v=source2",
+      durationSeconds: 120, reason: "Relevant title",
+    },
+  ];
   let result = plan();
   t.mock.method(globalThis, "fetch", async () =>
     new Response(JSON.stringify({
       candidates: [{ content: { role: "model", parts: [{ text: JSON.stringify(result) }] } }],
     }), { headers: { "content-type": "application/json" } }));
-  await assert.rejects(generateVideoProductionPlan(context, sources), /does not reference/);
+  await assert.rejects(generateVideoProductionPlan(context, sources), /must reference at least one selected source/);
   result.scenes = result.scenes.map((item) => ({ ...item, sourceVideoIds: [] }));
-  await assert.rejects(generateVideoProductionPlan(context, sources), /does not reference/);
+  await assert.rejects(generateVideoProductionPlan(context, sources), /must reference at least one selected source/);
   result.scenes[0].sourceVideoIds = ["unknown"];
   await assert.rejects(generateVideoProductionPlan(context, sources), /unknown source video/);
   result.scenes[0].sourceVideoIds = ["source", "source"];
   await assert.rejects(generateVideoProductionPlan(context, sources), /duplicate source video IDs/);
   result.scenes[0].sourceVideoIds = ["source"];
+  result.scenes[1].sourceVideoIds = ["source2"];
   assert.deepEqual(await generateVideoProductionPlan(context, sources), result);
+
+  result.scenes[1].sourceVideoIds = [];
+  await assert.rejects(generateVideoProductionPlan(context, sources), /must reference at least one selected source/);
+
+  result.scenes[0].sourceVideoIds = ["source"];
+  result.scenes[1].sourceVideoIds = ["source"];
+  await assert.rejects(generateVideoProductionPlan(context, sources), /does not use selected source video: source2/);
+
+  result.scenes[1] = { ...result.scenes[1], durationSeconds: 121, sourceVideoIds: ["source"] };
+  await assert.rejects(generateVideoProductionPlan(context, sources), /provide only 120s in total/);
 });
 
 test("validates aspect ratios, vertical Shorts, and required scene fields", async (t) => {
@@ -135,11 +155,12 @@ test("validates aspect ratios, vertical Shorts, and required scene fields", asyn
   result.aspectRatio = "16:9";
   const shorts = { ...context, platform: "YouTube Shorts" };
   await assert.rejects(generateVideoProductionPlan(shorts), /9:16/);
-  assert.deepEqual(await generateVideoProductionPlan({
-    ...shorts, contentStyle: "horizontal",
-  }), result);
+  await assert.rejects(generateVideoProductionPlan({ ...shorts, contentStyle: "horizontal" }), /9:16/);
   result.aspectRatio = "9:16";
   assert.deepEqual(await generateVideoProductionPlan(shorts), result);
+  result.videoDurationSeconds = 181;
+  await assert.rejects(generateVideoProductionPlan({ ...shorts, targetDuration: null }), /180 seconds/);
+  result.videoDurationSeconds = 180;
   result.scenes[0].onScreenText = [];
   await assert.rejects(generateVideoProductionPlan(shorts), /onScreenText/);
   result.scenes[0].onScreenText = ["Intro"];

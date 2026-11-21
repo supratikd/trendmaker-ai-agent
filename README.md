@@ -1,31 +1,91 @@
-# trendmaker-ai-agent
+# TrendMaker AI
 
-A TypeScript prototype for researching YouTube videos, analyzing content
-requests, and generating scene-by-scene video production plans with Gemini.
+### Idea in. Shareable Short out.
 
-> **Scope:** The Gemini CLI generates research suggestions only; it does not
-> verify live statistics. The separate YouTube MCP server searches YouTube and
-> retrieves video metadata and statistics.
+Tell TrendMaker what you want to make. Gemini understands the topic and goal;
+YouTube MCP finds candidate videos; the clip selector picks relevant sources;
+and the production planner shapes them into timed scenes. After you confirm
+reuse permission, `yt-dlp` gets the media, FFprobe checks it, and FFmpeg
+stitches everything into a vertical MP4 with subtle motion and transitions—
+ready for you to review and share.
 
-## Features
+`Your idea → Gemini Context Analyzer → YouTube MCP search → Clip Selector → Scene Planner → Authorized sources → FFprobe → FFmpeg → Shareable 9:16 MP4`
 
-- Uses Google's Gemini Developer API through the official `@google/genai` SDK.
-- Defaults to `gemini-3.5-flash-lite`, a cost-efficient text model. The model can
-  be changed with `GEMINI_MODEL`.
-- Accepts a research topic as a command-line argument.
-- Validates required environment configuration before making an API request.
-- Keeps API keys in a local environment file, which is excluded from Git.
-- Provides a separate stdio MCP tool for discovering YouTube video candidates.
-- Analyzes requests into structured context before YouTube agent discovery.
-- Generates structured video production plans from analyzed context.
-- Selects whole-video candidates from YouTube search metadata.
-- Connects analysis, YouTube discovery, candidate selection, and production planning.
-- Renders a standalone test video with FFmpeg.
+> **Know what the AI has—and hasn't—seen:** discovery and selection use YouTube
+> metadata, not footage or transcripts. A Creative Commons label is not
+> independent proof of rights to everything in a video. Review the content,
+> permissions, and attribution before publishing.
+
+## What you can do
+
+- Turn a plain-language request into structured context and a scene-by-scene
+  production plan with Gemini.
+- Search YouTube through a local stdio MCP server backed by the YouTube Data API.
+- Rank Shorts-length candidates by view count, select clips, and keep source IDs
+  connected to the plan's scenes.
+- Download missing source media with `yt-dlp` only when you affirm that reuse is
+  authorized.
+- Inspect source duration, dimensions, frame rate, and audio with FFprobe.
+- Render a normalized 1080×1920, 30 fps MP4 with FFmpeg, subtle zoom motion,
+  fade transitions, and preserved source audio.
+- Validate the final MP4's duration, dimensions, frame rate, and codecs before
+  it is placed in `output/`.
+
+The renderer adds **no generated text overlays, captions, voiceover, or music**.
+Plans may contain those as editorial notes; source audio is preserved when
+present, and the video focuses on the selected footage.
+
+## The workflow: prompt to MP4
+
+1. **Understand the request.** Gemini extracts the topic, intent, platform, and
+   any requested duration.
+2. **Discover candidates with MCP.** The app starts its own local YouTube MCP
+   server over stdio. The `search_youtube_videos` tool calls the YouTube Data
+   API and returns metadata for Creative-Commons-labeled, Shorts-length videos.
+3. **Select the clips.** Gemini chooses and orders candidates using the returned
+   metadata. The YouTube API does not confirm that a video is vertically
+   formatted as a Short.
+4. **Build the production plan.** Gemini creates timed scenes and connects each
+   scene to selected source IDs. Durations and source references are validated.
+5. **Verify and obtain sources.** With `--authorized-sources`, the source
+   manager rechecks availability, YouTube's license label, and duration, then
+   downloads missing files with `yt-dlp`.
+6. **Inspect media.** FFprobe checks each source's duration, dimensions, frame
+   rate, and audio. Scene time is allocated within each source's available
+   footage; rendering fails if the selected clips cannot supply enough time.
+7. **Render and verify.** FFmpeg scales and crops footage to vertical format,
+   applies subtle motion and fades, normalizes video/audio, and combines the
+   planned clips. FFprobe verifies the final MP4 before it is promoted.
+8. **Review the result.** A plan generated from a prompt is saved as
+   `production-output.json`; the MP4 is written to `output/`. A plan loaded
+   with `--from-file` is used as provided. Nothing is automatically uploaded
+   to a social platform.
+
+### Create a video
+
+After setup, provide a request in PowerShell:
+
+```powershell
+npm.cmd run produce -- --authorized-sources "Create a Jensen Huang meme video for YouTube Shorts"
+```
+
+To render a saved plan without repeating Gemini planning or YouTube search:
+
+```powershell
+npm.cmd run produce -- --authorized-sources --from-file production-output.json
+```
+
+Only use `--authorized-sources` if you have permission to download and reuse
+every selected source. API usage may incur charges. If YouTube reports exhausted
+quota, wait for the quota reset or request additional quota; retries cannot
+restore exhausted quota.
 
 ## Requirements
 
 - Node.js and npm
 - A Gemini API key from [Google AI Studio](https://aistudio.google.com/apikey)
+- A YouTube Data API v3 key for discovery and source verification
+- `yt-dlp`, FFmpeg, and FFprobe on `PATH` for full video production
 
 ## Setup
 
@@ -36,7 +96,8 @@ requests, and generating scene-by-scene video production plans with Gemini.
    ```
 
 2. Create a local `.env` file.
-3. Set `GEMINI_API_KEY` in `.env` for the Gemini CLI. The model setting is optional.
+3. Set `GEMINI_API_KEY` in `.env` for request analysis and production planning.
+   The model setting is optional.
 
 Example `.env`:
 
@@ -44,28 +105,24 @@ Example `.env`:
 GEMINI_API_KEY=replace_with_your_api_key
 # Optional; defaults to gemini-3.5-flash-lite
 GEMINI_MODEL=gemini-3.5-flash-lite
-# Required only for the YouTube MCP server
+# Required for YouTube discovery and source verification
 YOUTUBE_API_KEY=replace_with_your_youtube_api_key
 ```
 
 Never commit `.env` or share your API key. If a key is exposed, revoke it in
 Google AI Studio and create a replacement.
 
-## Usage
+## Explore the pipeline
 
-After configuring `.env`, install dependencies with `npm install`; run the
-research CLI with `npm run dev -- "<topic>"`; analyze an example request with
-`npx tsx src/execute/test-context.ts`; discover YouTube videos with
-`npx tsx src/execute/test-agent.ts` (requires both API keys); run the connected
-selection and planning workflow with `npm run --silent workflow -- "<request>"`
-(requires both API keys); or
-generate a video plan with `npx tsx src/execute/test-video-planner.ts`.
-Run `npm run typecheck` to check types,
-`npm test` to run tests, and `npm run build` to compile; after building, use
-`npm start -- "<topic>"` for the compiled CLI or `npm run mcp:youtube` to launch
-the stdio MCP server. Run `npx tsx src/execute/test-renderer.ts` to render a test video
-with FFmpeg, or `npx tsx src/execute/test-source-manager.ts` to download and
-check authorized source files.
+| Goal | Command | Requirements |
+| --- | --- | --- |
+| Run the connected discovery, selection, and planning workflow | `npm run --silent workflow -- "<request>"` | Gemini and YouTube API keys |
+| Analyze a request | `npx tsx src/execute/test-context.ts "<request>"` | Gemini API key |
+| Discover candidates through MCP | `npx tsx src/execute/test-agent.ts "<request>"` | Gemini and YouTube API keys |
+| Generate a production plan | `npx tsx src/execute/test-video-planner.ts "<request>"` | Gemini API key |
+| Check/download authorized sources | `npx tsx src/execute/test-source-manager.ts` | YouTube API key and `yt-dlp` |
+| Render the standalone renderer demo | `npx tsx src/execute/test-renderer.ts` | FFmpeg |
+| Run tests or type checks | `npm test` / `npm run typecheck` | Dependencies installed |
 
 Run in development mode with a topic:
 
@@ -92,7 +149,7 @@ npm start -- "indie game trailers"
 | --- | --- | --- | --- |
 | `GEMINI_API_KEY` | Yes | None | API key used to authenticate with Gemini. |
 | `GEMINI_MODEL` | No | `gemini-3.5-flash-lite` | Gemini model ID for text generation. |
-| `YOUTUBE_API_KEY` | For YouTube MCP | None | Google API key with YouTube Data API v3 enabled. |
+| `YOUTUBE_API_KEY` | For YouTube discovery and source downloads | None | Google API key with YouTube Data API v3 enabled. |
 
 Model availability and prices can change. Check Google's
 [model documentation](https://ai.google.dev/gemini-api/docs/models) and
@@ -106,20 +163,28 @@ Use Node.js 20.3 or later. Enable the YouTube Data API v3 in Google Cloud,
 configure `YOUTUBE_API_KEY`, run `npm run build`, then configure an MCP client
 to launch `node` with the absolute path to `dist/mcp/youtube-server.js` as its
 argument. Set `YOUTUBE_API_KEY` in the client's environment (or run from the
-directory containing `.env`). Do not use the Gemini CLI's key unless it is
-also enabled for the YouTube Data API.
+directory containing `.env`). The Gemini API key does not authorize YouTube
+Data API access; enable that API and configure `YOUTUBE_API_KEY` separately.
 
-The `search_youtube_videos` tool accepts a nonblank `query`, optional
-`maxResults` (1–50, default 50), and `duration` (`short` or `any`, default
-`short`). It fetches one search page, retrieves video details, and returns at
-most 10 ordered by view count. The default filters videos to at most 180
-seconds; `any` also includes longer sources. YouTube's `short` search filter
-includes videos under four minutes, so filtering may produce fewer than 10
-results even when more exist. These are duration-based candidates, not verified
-YouTube Shorts. Missing counts and thumbnails are reported as `null`, not
+The `search_youtube_videos` tool accepts a nonblank `query` and optional
+`maxResults` (1–50, default 50). It fetches one short-duration search page,
+searches for videos marked with YouTube's Creative Commons license, confirms
+the label in video details, then filters to videos at most 180 seconds long.
+It returns at most 10 ordered by view count. Each result includes
+`license: "creativeCommon"`. This label is not independent verification that
+the uploader owns all footage, music, or other material in the video; review
+the content and provide required attribution before reuse. The YouTube Data
+API does not expose a reliable field confirming that a video uses the vertical
+Shorts format, so these are Shorts-length candidates, not format-verified
+Shorts. Each candidate's video details are fetched in one batch; no channel
+playlist lookup is required.
+Searches may return fewer than 10 candidates.
+Missing counts and thumbnails are reported as `null`, not
 fabricated values. Each API request times
 out after 15 seconds; errors are returned as MCP tool errors. API quota and
-service restrictions apply.
+service restrictions apply. Temporary rate-limit responses are retried at most
+twice, respecting a short `Retry-After` delay. Exhausted daily quota is not
+retried; wait for the Google Cloud quota reset or request additional quota.
 
 To run the example discovery agent, set both API keys and run
 `npx tsx src/execute/test-agent.ts`. It first analyzes the request with Gemini, then
@@ -162,12 +227,12 @@ and the plan. Scene `sourceVideoIds` refer to selected candidates; those
 references are tentative and require human review. The workflow makes three
 Gemini requests as well as YouTube API requests.
 
-The output is one JSON object with `context`, `candidates`, `selection`, and
-`plan`. Each candidate has a canonical URL derived from its video ID; unavailable
-statistics and thumbnails are `null`. Scene `sourceVideoIds` may be empty for
-original material and otherwise reference selected candidates. Scene durations
-must total the planned duration and match the requested duration when specified.
-Vertical Shorts use `9:16`. Invalid JSON or inconsistent data produces an error
+The output is one JSON object with `context`, `candidates`, `selection`, `plan`,
+and `warnings`. Each candidate has a canonical URL derived from its video ID; unavailable
+statistics and thumbnails are `null`. Each planned scene references one or more
+selected candidates, and every selected candidate is used by the plan. Scene
+durations must total the planned duration and match the requested duration when specified.
+Shorts use `9:16` and at most 180 seconds. Invalid JSON or inconsistent data produces an error
 instead of a partial result.
 
 Illustrative mock output (the video ID is a placeholder, not a search result):
@@ -180,7 +245,8 @@ Illustrative mock output (the video ID is a placeholder, not a search result):
     "researchRequired": true, "actions": ["Find candidates", "Plan scenes"]
   },
   "candidates": [{
-    "videoId": "VIDEO_ID", "title": "Game trailer", "channel": "Example channel",
+    "videoId": "VIDEO_ID", "license": "creativeCommon",
+    "title": "Game trailer", "channel": "Example channel",
     "publishedAt": "2025-01-01T00:00:00Z", "durationSeconds": 60,
     "views": null, "likes": null, "comments": null,
     "url": "https://www.youtube.com/watch?v=VIDEO_ID", "thumbnail": null
@@ -188,7 +254,8 @@ Illustrative mock output (the video ID is a placeholder, not a search result):
   "selection": {
     "title": "Gaming highlights",
     "clips": [{
-      "order": 1, "videoId": "VIDEO_ID", "title": "Game trailer",
+      "order": 1, "videoId": "VIDEO_ID", "license": "creativeCommon",
+      "title": "Game trailer",
       "url": "https://www.youtube.com/watch?v=VIDEO_ID",
       "durationSeconds": 60, "reason": "The title is relevant to the topic."
     }]
@@ -205,30 +272,41 @@ Illustrative mock output (the video ID is a placeholder, not a search result):
       "sourceVideoIds": ["VIDEO_ID"]
     }],
     "musicDirection": "Upbeat", "productionNotes": ["Verify footage and reuse rights."]
-  }
+  },
+  "warnings": ["Only 1 Shorts-length candidate(s) available; the target is 3–4."]
 }
 ```
 
 Selection is based on metadata only: it does not inspect footage or transcripts,
 provide timestamps, download or combine videos, or establish reuse rights.
-Review the results and obtain permission before reusing footage. For general
-YouTube requests the workflow searches sources of any duration; for YouTube
-Shorts it searches short-form candidates. If a topic-and-style search has no
-results, the workflow retries using only the topic, which uses additional YouTube
-API quota. The combined source duration is not guaranteed to match the
-requested duration.
+Only candidates marked Creative Commons by YouTube reach the selector.
+Review each license and the actual content, including third-party footage and
+audio, and provide required attribution. This label does not independently
+establish rights to all material in a video. All requests search for
+Shorts-length Creative Commons videos only. If a topic-and-style search returns
+fewer than four candidates, the workflow also searches the topic alone, merges
+distinct results and ranks them by views. This uses additional YouTube API quota.
+The selector chooses three or four candidates when available; otherwise it
+chooses all available candidates and reports the shortfall in `warnings`.
+If no candidates are found, or the model returns an invalid selection count,
+the workflow fails.
+The combined source duration is not guaranteed to match the requested duration.
 
 ## Source file download and check
 
 Save the workflow JSON as `production-output.json` in the project directory.
-Install yt-dlp and make sure it is on `PATH`. Only run this for selected videos
-you are authorized to download and reuse:
+Install yt-dlp, make sure it is on `PATH`, and configure `YOUTUBE_API_KEY`.
+Only run this for selected Shorts you are authorized to download and reuse:
 
 ```sh
 npx tsx src/execute/test-source-manager.ts
 ```
 
-The checker also recognizes yt-dlp's default `title [videoId].mp4` filename in
+Before downloading or accepting local files, the script verifies every selected
+video is available, marked Creative Commons by YouTube, and within the
+three-minute duration limit. This check does not verify vertical Shorts format
+or independently establish rights to third-party material in a video. The checker recognizes
+yt-dlp's default `title [videoId].mp4` filename in
 `assets/sources` or the project directory. Missing videos are downloaded to
 `assets/sources/<videoId>.mp4` with `--ignore-config --verbose -f 18
 --no-overwrites --no-playlist`. Existing files are not overwritten; remove or
@@ -236,7 +314,41 @@ replace an empty target file before retrying. It reports actual paths and fails
 if a download fails or a source remains missing or empty. If multiple default
 filenames match an ID in the same directory, rename the intended file to
 `<videoId>.mp4` in `assets/sources`. Format `18` may not be available for every
-video. The script does not verify video contents or reuse rights.
+video. The script checks YouTube's Creative Commons label but does not inspect
+video contents or independently establish rights to third-party material.
+
+## End-to-end video production
+
+After you have a plan and selected source videos, render the scenes into one
+video:
+
+```powershell
+npm.cmd run produce -- --authorized-sources --from-file production-output.json
+```
+
+This rechecks the selected source files, downloads missing ones, and renders one
+MP4 under `output/`. To run context analysis, candidate search and selection,
+planning, download, and rendering together, provide a request instead:
+
+```powershell
+npm.cmd run produce -- --authorized-sources "Create a Jensen Huang meme video for YouTube Shorts"
+```
+
+PowerShell users should use `npm.cmd` so npm forwards the options after `--` to
+the production script. The workflow needs `YOUTUBE_API_KEY`, `yt-dlp`, and
+FFmpeg (`ffprobe` included) on `PATH`. Only use the authorization flag when
+downloading and reusing all selected sources is allowed. Source audio is
+preserved when present; no generated text overlays, captions, narration, or
+music are added. Scene directions are planning guidance; the renderer applies
+ordered source clips, a vertical crop, a subtle zoom, and fade transitions, but
+does not add generated assets.
+Scene duration is distributed across planned source clips from their beginnings,
+without allocating beyond a clip's duration; unused time is redistributed to
+clips with remaining footage.
+FFprobe inspects source duration, dimensions, frame rate, and audio before rendering,
+then verifies the output's dimensions, duration, frame rate, and codecs before it
+is moved into `output/`. FFmpeg's routine progress output is suppressed; errors
+are still shown. Existing output files are not overwritten.
 
 ## Test video renderer
 
@@ -261,7 +373,7 @@ src/
   prompts/
     research.ts         # Builds research, analysis, discovery, and planning prompts
   production/
-    video-renderer.ts   # Renders a standalone FFmpeg test video
+    video-renderer.ts   # Renders production plans and a standalone test video
   services/
     clip-selector.ts    # Selects whole-video candidates from metadata
     context-analyzer.ts # Extracts and validates structured request context
@@ -275,6 +387,7 @@ src/
     test-agent.ts         # Example YouTube discovery
     test-clip-selector.ts # Connected discovery and planning example
     test-context.ts       # Example request analysis
+    produce-video.ts     # Runs planning, downloading, and rendering
     test-renderer.ts      # Example test video renderer
     test-source-manager.ts # Downloads and checks selected source video files
     test-video-planner.ts # Example request analysis and production planning
@@ -286,6 +399,7 @@ src/
 | --- | --- |
 | `npm run dev -- "<topic>"` | Run directly from TypeScript. |
 | `npm run --silent workflow -- "<request>"` | Print the complete validated workflow as JSON. |
+| `npm run produce -- --authorized-sources --from-file production-output.json` | Download missing sources and render one MP4. |
 | `npm run typecheck` | Check TypeScript types without emitting files. |
 | `npm run build` | Compile TypeScript into `dist/`. |
 | `npm test` | Run context, clip selection, production planning, YouTube API, and MCP tests. |
@@ -300,4 +414,4 @@ before submitting a pull request.
 
 ## License
 
-This project is distributed under the ISC license declared in `package.json`.
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file.

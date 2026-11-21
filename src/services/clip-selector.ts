@@ -1,6 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 import { z } from "zod";
 import { env } from "../config/env.js";
+import { YOUTUBE } from "../config/constants.js";
 import { youtubeCandidateSchema } from "../mcp/youtube-client.js";
 import type { YouTubeCandidate } from "../mcp/youtube-client.js";
 import { createClipSelectionPrompt } from "../prompts/research.js";
@@ -21,6 +22,7 @@ const modelSelectionSchema = z.object({
 export interface SelectedClip {
   order: number;
   videoId: string;
+  license: "creativeCommon";
   title: string;
   url: string;
   durationSeconds: number;
@@ -90,11 +92,18 @@ export async function selectHighlights(
     selectedIds.add(clip.videoId);
     return {
       ...clip,
+      license: source.license,
       title: source.title,
       url: source.url,
       durationSeconds: source.durationSeconds,
     };
   });
+
+  const minimum = Math.min(YOUTUBE.MIN_SELECTED_SHORTS, candidates.length);
+  const maximum = Math.min(YOUTUBE.MAX_SELECTED_SHORTS, candidates.length);
+  if (clips.length < minimum || clips.length > maximum) {
+    throw new Error(`Clip selector must select between ${minimum} and ${maximum} distinct candidates; selected ${clips.length}.`);
+  }
 
   return { title: selection.title, clips };
 }

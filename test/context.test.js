@@ -49,6 +49,14 @@ test("rejects malformed or incomplete analyzer output", async (t) => {
   await assert.rejects(analyzeUserRequest(" "), /must not be blank/);
 });
 
+test("enforces Shorts platform and maximum duration", async (t) => {
+  let result = { ...context, platform: "YouTube" };
+  t.mock.method(globalThis, "fetch", async () => geminiResponse(JSON.stringify(result)));
+  assert.equal((await analyzeUserRequest("Make a video")).platform, "YouTube Shorts");
+  result = { ...result, targetDuration: 181 };
+  await assert.rejects(analyzeUserRequest("Make a long video"), /180 seconds/);
+});
+
 test("discovery passes the analyzed context and original request to Gemini", async (t) => {
   const bodies = [];
   t.mock.method(globalThis, "fetch", async (_url, options) => {

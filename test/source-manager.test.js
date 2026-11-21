@@ -11,6 +11,19 @@ const clip = (videoId) => ({
   durationSeconds: 30,
 });
 const production = (...ids) => ({ selection: { clips: ids.map(clip) } });
+const verifiedShorts = async (url) => {
+  const parsed = new URL(url);
+  const json = (body) => new Response(JSON.stringify(body));
+  if (parsed.pathname.endsWith("/videos")) {
+    return json({ items: parsed.searchParams.get("id").split(",").map((id) => ({
+      id,
+      snippet: { title: id, channelTitle: "channel", channelId: "UCchannel", publishedAt: "2025-01-01" },
+      contentDetails: { duration: "PT30S" },
+      status: { license: "creativeCommon" },
+    })) });
+  }
+  return json({ items: [{ contentDetails: { videoId: parsed.searchParams.get("videoId") } }] });
+};
 
 test("finds authorized ID-named and yt-dlp default files in the source or working directory", (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "trendmaker-sources-"));
@@ -52,7 +65,7 @@ test("rejects ambiguous filename matches and unsafe input", (t) => {
   assert.throws(() => checkSourceFiles({ selection: {} }, root), /Invalid production selection/);
 });
 
-test("downloads missing videos once and preserves existing files", (t) => {
+test("downloads missing videos once and preserves existing files", async (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "trendmaker-sources-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   fs.writeFileSync(path.join(root, "Existing [existing].mp4"), "existing");
@@ -61,20 +74,22 @@ test("downloads missing videos once and preserves existing files", (t) => {
     assert.deepEqual(args.slice(0, 7), [
       "--ignore-config", "--verbose", "-f", "18", "--no-overwrites", "--no-playlist", "-o",
     ]);
+    assert.equal(args[7], path.join(root, "assets", "sources", "%(id)s.%(ext)s"));
     assert.equal(args[8], "https://www.youtube.com/watch?v=missing");
     assert.equal(options.stdio, "inherit");
-    fs.writeFileSync(args[7], "video");
+    const outputPath = args[7].replace("%(id)s", "missing").replace("%(ext)s", "mp4");
+    fs.writeFileSync(outputPath, "video");
     return { status: 0, error: undefined, signal: null };
   });
 
-  const result = downloadMissingSourceFiles(production("existing", "missing", "missing"), root);
+  const result = await downloadMissingSourceFiles(production("existing", "missing", "missing"), "key", root, verifiedShorts);
   assert.equal(spawn.mock.callCount(), 1);
   assert.deepEqual(result.errors, []);
   assert.ok(result.sources.every((source) => source.exists));
   assert.equal(result.sources[1].filePath, path.join(root, "assets", "sources", "missing.mp4"));
 });
 
-test("reports failures, continues other downloads, and does not overwrite empty targets", (t) => {
+test("reports failures, continues other downloads, and does not overwrite empty targets", async (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "trendmaker-sources-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const sources = path.join(root, "assets", "sources");
@@ -83,11 +98,12 @@ test("reports failures, continues other downloads, and does not overwrite empty 
   const spawn = t.mock.method(childProcess, "spawnSync", (command, args) => {
     if (args[8].endsWith("failed")) return { status: 1, signal: null };
     if (args[8].endsWith("nooutput")) return { status: 0, signal: null };
-    fs.writeFileSync(args[7], "video");
+    const outputPath = args[7].replace("%(id)s", "success").replace("%(ext)s", "mp4");
+    fs.writeFileSync(outputPath, "video");
     return { status: 0, signal: null };
   });
 
-  const result = downloadMissingSourceFiles(production("empty", "failed", "nooutput", "success"), root);
+  const result = await downloadMissingSourceFiles(production("empty", "failed", "nooutput", "success"), "key", root, verifiedShorts);
   assert.equal(spawn.mock.callCount(), 3);
   assert.deepEqual(result.errors.map((error) => error.videoId), ["empty", "failed", "nooutput"]);
   assert.match(result.errors[0].message, /already exists/);
@@ -95,4 +111,37 @@ test("reports failures, continues other downloads, and does not overwrite empty 
   assert.match(result.errors[2].message, /did not produce/);
   assert.equal(fs.statSync(path.join(sources, "empty.mp4")).size, 0);
   assert.equal(result.sources[3].exists, true);
+});
+
+test("does not download any files when a source exceeds the Shorts duration limit", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "trendmaker-sources-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const spawn = t.mock.method(childProcess, "spawnSync", () => { throw new Error("unexpected download"); });
+  const tooLong = async () => new Response(JSON.stringify({ items: [{
+    id: "regular",
+    snippet: { title: "regular", channelTitle: "channel", channelId: "UCchannel", publishedAt: "2025-01-01" },
+    contentDetails: { duration: "PT3M1S" },
+    status: { license: "creativeCommon" },
+  }] }));
+  await assert.rejects(downloadMissingSourceFiles(production("regular"), "key", root, tooLong), /3-minute/);
+  assert.equal(spawn.mock.callCount(), 0);
+});
+
+test("does not download a source that is not marked Creative Commons", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "trendmaker-sources-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const spawn = t.mock.method(childProcess, "spawnSync", () => {
+    throw new Error("unexpected download");
+  });
+  const standardLicense = async () => new Response(JSON.stringify({ items: [{
+    id: "standard",
+    snippet: { title: "standard", channelTitle: "channel", channelId: "UCchannel", publishedAt: "2025-01-01" },
+    contentDetails: { duration: "PT30S" },
+    status: { license: "youtube" },
+  }] }));
+  await assert.rejects(
+    downloadMissingSourceFiles(production("standard"), "key", root, standardLicense),
+    /not marked Creative Commons/,
+  );
+  assert.equal(spawn.mock.callCount(), 0);
 });

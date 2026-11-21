@@ -3,13 +3,11 @@ import fs from "node:fs";
 import path from "node:path";
 import childProcess from "node:child_process";
 import { z } from "zod";
+import { verifyYouTubeShortsForReuse } from "../mcp/youtube-api.js";
 
 interface ProductionClip {
-  order: number;
   videoId: string;
   title: string;
-  url: string;
-  durationSeconds: number;
 }
 
 interface ProductionInput {
@@ -117,11 +115,22 @@ export function checkSourceFiles(
   });
 }
 
-export function downloadMissingSourceFiles(
-  production: ProductionInput,
+export async function downloadMissingSourceFiles(
+  production: unknown,
+  apiKey: string | undefined,
   rootDirectory = process.cwd(),
-): { sources: SourceFileResult[]; errors: { videoId: string; message: string }[] } {
-  const sources = checkSourceFiles(production, rootDirectory);
+  fetchImpl: typeof fetch = fetch,
+): Promise<{ sources: SourceFileResult[]; errors: { videoId: string; message: string }[] }> {
+  const parsed = productionSchema.safeParse(production);
+  if (!parsed.success) {
+    throw new Error(`Invalid production selection: ${parsed.error.message}`);
+  }
+  const sources = checkSourceFiles(parsed.data, rootDirectory);
+  console.log(`[SOURCE] Verifying ${sources.length} selected video(s) for reuse...`);
+  await verifyYouTubeShortsForReuse(
+    sources.map((source) => source.videoId), apiKey, new AbortController().signal, fetchImpl,
+  );
+  console.log("[SOURCE] YouTube reuse and duration verification complete.");
   const sourceDirectory = path.resolve(rootDirectory, "assets", "sources");
   const errors: { videoId: string; message: string }[] = [];
   const attempted = new Set<string>();
@@ -132,13 +141,15 @@ export function downloadMissingSourceFiles(
 
     try {
       const target = path.join(sourceDirectory, `${source.videoId}.mp4`);
+      const outputTemplate = path.join(sourceDirectory, "%(id)s.%(ext)s");
       if (fs.existsSync(target)) {
         throw new Error(`Target already exists but is not a nonempty file: ${target}`);
       }
       fs.mkdirSync(sourceDirectory, { recursive: true });
+      console.log(`[DOWNLOAD] Downloading source ${source.videoId}: ${source.title}`);
       const result = childProcess.spawnSync("yt-dlp", [
         "--ignore-config", "--verbose", "-f", "18", "--no-overwrites",
-        "--no-playlist", "-o", target,
+        "--no-playlist", "-o", outputTemplate,
         `https://www.youtube.com/watch?v=${source.videoId}`,
       ], { stdio: "inherit" });
       if (result.error) throw result.error;
@@ -148,6 +159,7 @@ export function downloadMissingSourceFiles(
       if (!fileInfo(target).exists) {
         throw new Error(`yt-dlp did not produce a nonempty file: ${target}`);
       }
+      console.log(`[DOWNLOAD] Source ${source.videoId} downloaded successfully.`);
     } catch (error: unknown) {
       errors.push({
         videoId: source.videoId,
@@ -156,5 +168,5 @@ export function downloadMissingSourceFiles(
     }
   }
 
-  return { sources: checkSourceFiles(production, rootDirectory), errors };
+  return { sources: checkSourceFiles(parsed.data, rootDirectory), errors };
 }

@@ -6,6 +6,8 @@ import { createVideoProductionPrompt } from "../prompts/research.js";
 import type { SelectedClip } from "./clip-selector.js";
 import type { UserContext } from "./context-analyzer.js";
 import { parseStructuredJson } from "./structured-json.js";
+import { YOUTUBE } from "../config/constants.js";
+import { allocateSceneSourceDurations } from "./scene-source-allocation.js";
 
 const ai = new GoogleGenAI({
   apiKey: env.GEMINI_API_KEY,
@@ -66,8 +68,13 @@ export async function generateVideoProductionPlan(
   sources: readonly SelectedClip[] = [],
 ): Promise<VideoProductionPlan> {
   if (context.targetDuration !== null &&
-      (!Number.isSafeInteger(context.targetDuration) || context.targetDuration <= 0)) {
-    throw new Error("Target duration must be a positive integer number of seconds.");
+      (!Number.isSafeInteger(context.targetDuration) || context.targetDuration <= 0 ||
+       context.targetDuration > YOUTUBE.MAX_CANDIDATE_DURATION_SECONDS)) {
+    throw new Error("Target duration must be a positive integer no greater than 180 seconds.");
+  }
+  if (sources.some((source) => !Number.isSafeInteger(source.durationSeconds) ||
+      source.durationSeconds <= 0 || source.durationSeconds > YOUTUBE.MAX_CANDIDATE_DURATION_SECONDS)) {
+    throw new Error("Source videos must be within the 3-minute Shorts duration limit.");
   }
 
   const response = await ai.models.generateContent({
@@ -157,30 +164,41 @@ export async function generateVideoProductionPlan(
 
   const plan = parseStructuredJson(response.text, productionPlanSchema, "Production planner");
 
-  const orientation = [context.platform, context.contentStyle, ...context.actions].join(" ");
-  const explicitlyVertical = /\b(vertical|portrait)\b|9\s*:\s*16/i.test(orientation);
-  const explicitlyHorizontal = /\b(horizontal|landscape)\b|16\s*:\s*9/i.test(orientation);
-  const verticalShorts = /\bshorts\b/i.test(context.platform) && !explicitlyHorizontal;
-  if ((explicitlyVertical || verticalShorts) && plan.aspectRatio !== "9:16") {
-    throw new Error("Vertical video plans must use the 9:16 aspect ratio.");
+  if (plan.aspectRatio !== "9:16") {
+    throw new Error("YouTube Shorts plans must use the 9:16 aspect ratio.");
+  }
+  if (plan.videoDurationSeconds > YOUTUBE.MAX_CANDIDATE_DURATION_SECONDS) {
+    throw new Error("YouTube Shorts plans must be no longer than 180 seconds.");
   }
 
   const sourceIds = new Set(sources.map((source) => source.videoId));
-  let referencedSources = 0;
+  const sourceById = new Map(sources.map((source) => [source.videoId, source]));
+  const referencedSources = new Set<string>();
   for (const scene of plan.scenes) {
     const sceneSourceIds = scene.sourceVideoIds;
     if (new Set(sceneSourceIds).size !== sceneSourceIds.length) {
       throw new Error(`Scene ${scene.sceneNumber} contains duplicate source video IDs.`);
     }
+    if (sources.length > 0 && sceneSourceIds.length === 0) {
+      throw new Error(`Scene ${scene.sceneNumber} must reference at least one selected source video.`);
+    }
+    if (sceneSourceIds.length === 0) continue;
+    const sceneSources: SelectedClip[] = [];
     for (const videoId of sceneSourceIds) {
-      if (!sourceIds.has(videoId)) {
+      const source = sourceById.get(videoId);
+      if (!sourceIds.has(videoId) || !source) {
         throw new Error(`Scene ${scene.sceneNumber} references unknown source video: ${videoId}`);
       }
-      referencedSources++;
+      sceneSources.push(source);
+      referencedSources.add(videoId);
     }
+    allocateSceneSourceDurations(scene.sceneNumber, scene.durationSeconds, sceneSources);
   }
-  if (sources.length > 0 && referencedSources === 0) {
-    throw new Error("Production plan does not reference any selected source video.");
+  if (sources.length > 0) {
+    const unusedSource = sources.find((source) => !referencedSources.has(source.videoId));
+    if (unusedSource) {
+      throw new Error(`Production plan does not use selected source video: ${unusedSource.videoId}`);
+    }
   }
 
   const totalSceneDuration = plan.scenes.reduce(

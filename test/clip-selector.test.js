@@ -22,6 +22,7 @@ const context = {
 };
 const video = (videoId) => ({
   videoId,
+  license: "creativeCommon",
   title: `Title ${videoId}`,
   channel: "channel",
   publishedAt: "2025-01-01",
@@ -53,7 +54,10 @@ test("passes analyzed context and every MCP result to the selector", async (t) =
     bodies.push(JSON.parse(options.body));
     return response(JSON.stringify(bodies.length === 1 ? context : {
       title: "Candidates",
-      clips: [{ order: 1, videoId: "second", reason: "Relevant title", url: "https://invented.test", startSeconds: 5 }],
+      clips: [
+        { order: 1, videoId: "second", reason: "Relevant title", url: "https://invented.test", startSeconds: 5 },
+        { order: 2, videoId: "first", reason: "Relevant title" },
+      ],
     }));
   });
 
@@ -62,7 +66,7 @@ test("passes analyzed context and every MCP result to the selector", async (t) =
   const selected = await selectHighlights(analyzed, candidates);
   assert.deepEqual(call.mock.calls[0].arguments[0], {
     name: "search_youtube_videos",
-    arguments: { query: "Jensen Huang meme", duration: "short" },
+    arguments: { query: "Jensen Huang meme" },
   });
   assert.equal(close.mock.callCount(), 1);
   assert.deepEqual(candidates, videos);
@@ -72,27 +76,41 @@ test("passes analyzed context and every MCP result to the selector", async (t) =
   assert.deepEqual(selected, {
     title: "Candidates",
     clips: [{
-      order: 1, videoId: "second", title: "Title second",
+      order: 1, videoId: "second", license: "creativeCommon", title: "Title second",
       url: videos[1].url, durationSeconds: 30, reason: "Relevant title",
+    }, {
+      order: 2, videoId: "first", license: "creativeCommon", title: "Title first",
+      url: videos[0].url, durationSeconds: 30, reason: "Relevant title",
     }],
   });
 });
 
-test("retries a topic-only search when the style-specific query has no results", async (t) => {
+test("merges and ranks distinct topic-only results when the initial search has fewer than four", async (t) => {
   t.mock.method(Client.prototype, "connect", async () => {});
   const close = t.mock.method(Client.prototype, "close", async () => {});
   const call = t.mock.method(Client.prototype, "callTool", async ({ arguments: args }) => ({
     content: [{ type: "text", text: JSON.stringify({
       query: args.query,
-      results: args.query === "Jensen Huang" ? videos : [],
+      results: args.query === "Jensen Huang" ? [videos[0], { ...videos[1], views: 200 }] : [videos[0]],
     }) }],
   }));
-  assert.deepEqual(await searchYouTubeCandidates({ ...context, platform: "YouTube" }), videos);
+  assert.deepEqual(await searchYouTubeCandidates({ ...context, platform: "YouTube" }), [
+    { ...videos[1], views: 200 }, videos[0],
+  ]);
   assert.deepEqual(call.mock.calls.map((item) => item.arguments[0].arguments), [
-    { query: "Jensen Huang meme", duration: "any" },
-    { query: "Jensen Huang", duration: "any" },
+    { query: "Jensen Huang meme" },
+    { query: "Jensen Huang" },
   ]);
   assert.equal(close.mock.callCount(), 1);
+});
+
+test("does not make a second search when at least four candidates are found", async (t) => {
+  const found = [video("first"), video("second"), video("third"), video("fourth")];
+  const { call } = mockClient(t, {
+    content: [{ type: "text", text: JSON.stringify({ query: "test", results: found }) }],
+  });
+  assert.deepEqual(await searchYouTubeCandidates(context), found);
+  assert.equal(call.mock.callCount(), 1);
 });
 
 test("keeps Shorts searches short and does not retry an identical query", async (t) => {
@@ -104,7 +122,7 @@ test("keeps Shorts searches short and does not retry an identical query", async 
   }), []);
   assert.equal(call.mock.callCount(), 1);
   assert.deepEqual(call.mock.calls[0].arguments[0].arguments, {
-    query: "Jensen Huang", duration: "short",
+    query: "Jensen Huang",
   });
 });
 
@@ -159,6 +177,27 @@ test("rejects invalid model selections and missing candidates", async (t) => {
   await assert.rejects(selectHighlights(context, videos));
 });
 
+test("requires three or four unique selections, or all candidates when fewer than three exist", async (t) => {
+  const candidates = Array.from({ length: 5 }, (_, i) => video(`v${i}`));
+  let count = 2;
+  t.mock.method(globalThis, "fetch", async () => response(JSON.stringify({
+    title: "Candidates",
+    clips: candidates.slice(0, count).map((candidate, i) => ({
+      order: i + 1, videoId: candidate.videoId, reason: "Relevant title",
+    })),
+  })));
+  await assert.rejects(selectHighlights(context, candidates), /between 3 and 4/);
+  assert.equal((await selectHighlights(context, candidates.slice(0, 2))).clips.length, 2);
+  count = 1;
+  assert.equal((await selectHighlights(context, candidates.slice(0, 1))).clips.length, 1);
+  count = 3;
+  assert.equal((await selectHighlights(context, candidates)).clips.length, 3);
+  count = 4;
+  assert.equal((await selectHighlights(context, candidates)).clips.length, 4);
+  count = 5;
+  await assert.rejects(selectHighlights(context, candidates), /between 3 and 4/);
+});
+
 test("connects request analysis, MCP search, selection, and source-aware planning", async (t) => {
   const { call } = mockClient(t, {
     content: [{ type: "text", text: JSON.stringify({ query: "test", results: videos }) }],
@@ -174,7 +213,7 @@ test("connects request analysis, MCP search, selection, and source-aware plannin
       sceneNumber: 1, sceneTitle: "Introduction", durationSeconds: 45,
       purpose: "Introduce the topic", visualDirection: "Review source before use",
       narration: "Introduction", onScreenText: ["Introduction"], assetRequirements: ["Illustration"],
-      audioDirection: "Music", sourceVideoIds: ["second"],
+      audioDirection: "Music", sourceVideoIds: ["second", "first"],
     }],
     musicDirection: "Upbeat",
     productionNotes: ["Verify rights and footage"],
@@ -184,7 +223,10 @@ test("connects request analysis, MCP search, selection, and source-aware plannin
     bodies.push(JSON.parse(options.body));
     const outputs = [
       context,
-      { title: "Candidates", clips: [{ order: 1, videoId: "second", reason: "Relevant title" }] },
+      { title: "Candidates", clips: [
+        { order: 1, videoId: "second", reason: "Relevant title" },
+        { order: 2, videoId: "first", reason: "Relevant title" },
+      ] },
       plan,
     ];
     assert.ok(bodies.length <= outputs.length);
@@ -192,18 +234,19 @@ test("connects request analysis, MCP search, selection, and source-aware plannin
   });
 
   const result = await createVideoWorkflow(request);
-  assert.deepEqual(Object.keys(result), ["context", "candidates", "selection", "plan"]);
+  assert.deepEqual(Object.keys(result), ["context", "candidates", "selection", "plan", "warnings"]);
   assert.deepEqual(JSON.parse(JSON.stringify(result)), result);
-  assert.equal(call.mock.callCount(), 1);
+  assert.equal(call.mock.callCount(), 2);
   assert.equal(bodies.length, 3);
   assert.deepEqual(result.context, context);
   assert.deepEqual(result.candidates, videos);
   assert.equal(result.selection.clips[0].url, videos[1].url);
+  assert.match(result.warnings[0], /Only 2 Shorts-length/);
   assert.deepEqual(result.plan, plan);
   const planningPrompt = bodies[2].contents[0].parts[0].text;
   assert.ok(planningPrompt.includes(JSON.stringify(context, null, 2)));
   assert.ok(planningPrompt.includes(videos[1].url));
-  assert.ok(!planningPrompt.includes(videos[0].url));
+  assert.ok(planningPrompt.includes(videos[0].url));
 });
 
 test("workflow stops when YouTube returns no candidates", async (t) => {

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { env } from "../config/env.js";
 import { createContextAnalyzerPrompt } from "../prompts/research.js";
 import { parseStructuredJson } from "./structured-json.js";
+import { YOUTUBE } from "../config/constants.js";
 
 const ai = new GoogleGenAI({
   apiKey: env.GEMINI_API_KEY,
@@ -86,5 +87,9 @@ export async function analyzeUserRequest(
     throw new Error("Context analyzer returned an empty response.");
   }
 
-  return parseStructuredJson(response.text, userContextSchema, "Context analyzer");
+  const context = parseStructuredJson(response.text, userContextSchema, "Context analyzer");
+  if (context.targetDuration !== null && context.targetDuration > YOUTUBE.MAX_CANDIDATE_DURATION_SECONDS) {
+    throw new Error("YouTube Shorts must be no longer than 180 seconds.");
+  }
+  return { ...context, platform: "YouTube Shorts" };
 }
