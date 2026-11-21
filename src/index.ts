@@ -1,6 +1,6 @@
 import { generateResearchSuggestions } from "./services/gemini.js";
 
-const defaultTopic = "Find the most viewed MEME YouTube Shorts about Jensen Huang";
+const defaultTopic = "indie game trailers";
 
 async function main(): Promise<void> {
   const topic = process.argv.slice(2).join(" ").trim() || defaultTopic;

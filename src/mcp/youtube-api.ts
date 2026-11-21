@@ -3,8 +3,14 @@ import { YOUTUBE } from "../config/constants.js";
 
 export class YouTubeError extends Error {}
 
+export const youtubeVideoIdSchema = z.string().regex(/^[A-Za-z0-9_-]+$/);
+
+export function youtubeWatchUrl(videoId: string): string {
+  return `https://www.youtube.com/watch?v=${videoId}`;
+}
+
 const searchSchema = z.object({
-  items: z.array(z.object({ id: z.object({ videoId: z.string().min(1) }) })),
+  items: z.array(z.object({ id: z.object({ videoId: youtubeVideoIdSchema }) })),
 });
 
 const countSchema = z.string().regex(/^\d+$/).refine(
@@ -14,13 +20,13 @@ const countSchema = z.string().regex(/^\d+$/).refine(
 
 const detailsSchema = z.object({
   items: z.array(z.object({
-    id: z.string().min(1),
+    id: youtubeVideoIdSchema,
     snippet: z.object({
-      title: z.string(),
-      channelTitle: z.string(),
-      publishedAt: z.string(),
+      title: z.string().trim().min(1),
+      channelTitle: z.string().trim().min(1),
+      publishedAt: z.string().trim().min(1),
       thumbnails: z.object({
-        medium: z.object({ url: z.string() }).optional(),
+        medium: z.object({ url: z.string().url() }).optional(),
       }).optional(),
     }),
     contentDetails: z.object({ duration: z.string() }),
@@ -86,26 +92,30 @@ async function requestYouTube<T>(
   return result.data;
 }
 
-/** Search videos, retrieve their statistics, and rank candidates up to three minutes long. */
+/** Search videos, retrieve their statistics, and rank candidates by view count. */
 export async function searchYouTubeVideos(
   query: string,
   maxResults: number,
   apiKey: string | undefined,
   signal: AbortSignal,
   fetchImpl: typeof fetch = fetch,
+  duration: "short" | "any" = "short",
 ) {
   if (!apiKey) {
     throw new YouTubeError("YOUTUBE_API_KEY is required to search YouTube.");
   }
 
-  const search = await requestYouTube("search", new URLSearchParams({
+  const searchParams = new URLSearchParams({
     part: "snippet",
     q: query,
     type: "video",
     order: "viewCount",
-    videoDuration: "short",
     maxResults: String(maxResults),
-  }), apiKey, searchSchema, signal, fetchImpl);
+  });
+  if (duration === "short") {
+    searchParams.set("videoDuration", "short");
+  }
+  const search = await requestYouTube("search", searchParams, apiKey, searchSchema, signal, fetchImpl);
   const videoIds = search.items.map((item) => item.id.videoId);
   if (videoIds.length === 0) {
     return { query, results: [] };
@@ -116,19 +126,24 @@ export async function searchYouTubeVideos(
     id: videoIds.join(","),
   }), apiKey, detailsSchema, signal, fetchImpl);
 
+  const searchedIds = new Set(videoIds);
+  if (details.items.some((video) => !searchedIds.has(video.id))) {
+    throw new YouTubeError("YouTube returned video details for an unrequested ID.");
+  }
   const candidates = details.items.map((video) => ({
     videoId: video.id,
     title: video.snippet.title,
     channel: video.snippet.channelTitle,
     publishedAt: video.snippet.publishedAt,
     durationSeconds: durationToSeconds(video.contentDetails.duration),
-    views: Number(video.statistics?.viewCount ?? 0),
-    likes: Number(video.statistics?.likeCount ?? 0),
-    comments: Number(video.statistics?.commentCount ?? 0),
-    url: `https://www.youtube.com/watch?v=${video.id}`,
-    thumbnail: video.snippet.thumbnails?.medium?.url,
-  })).filter((video) => video.durationSeconds <= YOUTUBE.MAX_CANDIDATE_DURATION_SECONDS);
+    views: video.statistics?.viewCount === undefined ? null : Number(video.statistics.viewCount),
+    likes: video.statistics?.likeCount === undefined ? null : Number(video.statistics.likeCount),
+    comments: video.statistics?.commentCount === undefined ? null : Number(video.statistics.commentCount),
+    url: youtubeWatchUrl(video.id),
+    thumbnail: video.snippet.thumbnails?.medium?.url ?? null,
+  })).filter((video) =>
+    duration === "any" || video.durationSeconds <= YOUTUBE.MAX_CANDIDATE_DURATION_SECONDS);
 
-  candidates.sort((a, b) => b.views - a.views);
+  candidates.sort((a, b) => (b.views ?? -1) - (a.views ?? -1));
   return { query, totalCandidates: candidates.length, results: candidates.slice(0, YOUTUBE.MAX_RETURNED_RESULTS) };
 }

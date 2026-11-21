@@ -29,13 +29,52 @@ test("searches, filters at three minutes, ranks, and limits results", async () =
   assert.equal(result.results.length, 10);
   assert.deepEqual(result.results.map((item) => item.views), [11, 10, 9, 8, 7, 6, 5, 4, 3, 2]);
   assert.equal(result.results[0].durationSeconds, 180);
-  assert.equal(result.results[0].likes, 0);
+  assert.equal(result.results[0].likes, null);
+  assert.equal(result.results[0].comments, null);
+  assert.equal(result.results[0].thumbnail, null);
+  assert.equal(result.results[0].url, "https://www.youtube.com/watch?v=v11");
+  assert.deepEqual(Object.keys(result.results[0]), [
+    "videoId", "title", "channel", "publishedAt", "durationSeconds",
+    "views", "likes", "comments", "url", "thumbnail",
+  ]);
   assert.equal(calls[0].url.searchParams.get("q"), "test");
   assert.equal(calls[0].url.searchParams.get("maxResults"), "50");
+  assert.equal(calls[0].url.searchParams.get("videoDuration"), "short");
   assert.equal(calls[1].url.searchParams.get("id").split(",").length, 14);
   assert.equal(calls[0].url.searchParams.has("key"), false);
   assert.equal(calls[0].options.headers["x-goog-api-key"], "secret");
   assert.ok(calls[0].options.signal instanceof AbortSignal);
+});
+
+test("keeps unavailable statistics distinct from zero and sorts known views first", async () => {
+  const missing = video("missing", "PT1M", 0);
+  delete missing.statistics;
+  const zero = video("zero", "PT1M", 0);
+  zero.statistics.likeCount = "0";
+  const input = [missing, zero];
+  let calls = 0;
+  const result = await searchYouTubeVideos("test", 5, "key", signal(), async () =>
+    ++calls === 1
+      ? json({ items: input.map((item) => ({ id: { videoId: item.id } })) })
+      : json({ items: input }));
+  assert.deepEqual(result.results.map((item) => item.views), [0, null]);
+  assert.equal(result.results[0].likes, 0);
+  assert.equal(result.results[1].likes, null);
+  assert.equal(result.results[1].thumbnail, null);
+});
+
+test("can search all source durations without filtering longer videos", async () => {
+  const calls = [];
+  const fetchImpl = async (url) => {
+    calls.push(new URL(url));
+    return calls.length === 1
+      ? json({ items: [{ id: { videoId: "long" } }, { id: { videoId: "short" } }] })
+      : json({ items: [video("long", "PT10M", 200), video("short", "PT1M", 100)] });
+  };
+  const result = await searchYouTubeVideos("Jensen Huang", 50, "key", signal(), fetchImpl, "any");
+  assert.equal(calls[0].searchParams.has("videoDuration"), false);
+  assert.deepEqual(result.results.map((item) => item.videoId), ["long", "short"]);
+  assert.equal(result.results[0].durationSeconds, 600);
 });
 
 test("returns no results without requesting details", async () => {
@@ -90,7 +129,13 @@ test("stdio MCP server validates inputs and reports missing credentials", async 
     assert.ok(tools.tools.some((tool) => tool.name === "search_youtube_videos"));
     const invalid = await client.callTool({ name: "search_youtube_videos", arguments: { query: "   " } });
     assert.equal(invalid.isError, true);
-    const missing = await client.callTool({ name: "search_youtube_videos", arguments: { query: "test" } });
+    const invalidDuration = await client.callTool({
+      name: "search_youtube_videos", arguments: { query: "test", duration: "long" },
+    });
+    assert.equal(invalidDuration.isError, true);
+    const missing = await client.callTool({
+      name: "search_youtube_videos", arguments: { query: "test", duration: "any" },
+    });
     assert.equal(missing.isError, true);
     assert.match(missing.content[0].text, /YOUTUBE_API_KEY/);
   } finally {

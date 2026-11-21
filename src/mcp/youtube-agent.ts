@@ -5,6 +5,7 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 
 import { env } from "../config/env.js";
 import { createYouTubeDiscoveryPrompt } from "../prompts/research.js";
+import { analyzeUserRequest } from "../services/context-analyzer.js";
 
 const ai = new GoogleGenAI({
   apiKey: env.GEMINI_API_KEY,
@@ -13,6 +14,7 @@ const ai = new GoogleGenAI({
 export async function discoverYouTubeVideos(
   userRequest: string,
 ): Promise<string> {
+  const context = await analyzeUserRequest(userRequest);
 
   const mcpClient = new Client({
     name: "trendmaker-agent",
@@ -20,8 +22,8 @@ export async function discoverYouTubeVideos(
   });
 
   const transport = new StdioClientTransport({
-    command: "npx",
-    args: ["tsx", "src/mcp/youtube-server.ts"],
+    command: process.execPath,
+    args: ["--import", "tsx", "src/mcp/youtube-server.ts"],
     cwd: process.cwd(),
   });
 
@@ -40,14 +42,17 @@ export async function discoverYouTubeVideos(
     const response = await ai.models.generateContent({
       model: env.GEMINI_MODEL,
 
-      contents: createYouTubeDiscoveryPrompt(userRequest),
+      contents: createYouTubeDiscoveryPrompt(userRequest, context),
 
       config: {
         tools: [mcpToTool(mcpClient)],
       },
     });
 
-    return response.text ?? "Gemini returned an empty response.";
+    if (!response.text) {
+      throw new Error("Gemini returned an empty YouTube discovery response.");
+    }
+    return response.text;
 
   } finally {
     await mcpClient.close();
