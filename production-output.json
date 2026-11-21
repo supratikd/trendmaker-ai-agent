@@ -1,0 +1,159 @@
+{
+  "context": {
+    "topic": "most viewed MEME about Jensen Huang",
+    "intent": "video_creation",
+    "platform": "YouTube",
+    "targetDuration": null,
+    "targetAudience": null,
+    "contentStyle": null,
+    "researchRequired": true,
+    "actions": [
+      "Find relevant trending YouTube videos about Jensen Huang memes",
+      "Create a video based on the research"
+    ]
+  },
+  "candidates": [
+    {
+      "videoId": "SdnCvYmIjEU",
+      "title": "Nvidia CEO it’s done Bro ! Jansen Huang Mind Right Now ! Jansan Huang World Tour Memes ! Jansen !",
+      "channel": "Shreyathakursingh",
+      "publishedAt": "2026-11-11T06:21:57Z",
+      "durationSeconds": 25,
+      "views": 407163,
+      "likes": 3447,
+      "comments": 174,
+      "url": "https://www.youtube.com/watch?v=SdnCvYmIjEU",
+      "thumbnail": "https://i.ytimg.com/vi/SdnCvYmIjEU/mqdefault.jpg"
+    },
+    {
+      "videoId": "3hO6hbU2v6o",
+      "title": "‘Jensen, what the F**k?’: Huang memes go viral after NVIDIA CEO caught 'pants down' with Chinese spy",
+      "channel": "The Economic Times",
+      "publishedAt": "2026-11-10T18:35:52Z",
+      "durationSeconds": 511,
+      "views": 148316,
+      "likes": 470,
+      "comments": 131,
+      "url": "https://www.youtube.com/watch?v=3hO6hbU2v6o",
+      "thumbnail": "https://i.ytimg.com/vi/3hO6hbU2v6o/mqdefault.jpg"
+    },
+    {
+      "videoId": "e2swttWkqN8",
+      "title": "10 Minutes of Jensen Huang's Funniest Meme Videos (Part 4)",
+      "channel": "Overloop",
+      "publishedAt": "2026-11-15T21:33:07Z",
+      "durationSeconds": 561,
+      "views": 106001,
+      "likes": 2200,
+      "comments": 161,
+      "url": "https://www.youtube.com/watch?v=e2swttWkqN8",
+      "thumbnail": "https://i.ytimg.com/vi/e2swttWkqN8/mqdefault.jpg"
+    }
+  ],
+  "selection": {
+    "title": "Most Viewed Memes About Jensen Huang",
+    "clips": [
+      {
+        "order": 1,
+        "videoId": "SdnCvYmIjEU",
+        "reason": "This video is a top candidate with high view count (over 400,000 views) focusing directly on Jensen Huang world tour memes.",
+        "title": "Nvidia CEO it’s done Bro ! Jansen Huang Mind Right Now ! Jansan Huang World Tour Memes ! Jansen !",
+        "url": "https://www.youtube.com/watch?v=SdnCvYmIjEU",
+        "durationSeconds": 25
+      },
+      {
+        "order": 2,
+        "videoId": "3hO6hbU2v6o",
+        "reason": "This candidate discusses viral Jensen Huang memes that gained significant traction following news coverage from The Economic Times.",
+        "title": "‘Jensen, what the F**k?’: Huang memes go viral after NVIDIA CEO caught 'pants down' with Chinese spy",
+        "url": "https://www.youtube.com/watch?v=3hO6hbU2v6o",
+        "durationSeconds": 511
+      },
+      {
+        "order": 3,
+        "videoId": "e2swttWkqN8",
+        "reason": "This video serves as a strong candidate compilation dedicated specifically to the funniest Jensen Huang meme videos.",
+        "title": "10 Minutes of Jensen Huang's Funniest Meme Videos (Part 4)",
+        "url": "https://www.youtube.com/watch?v=e2swttWkqN8",
+        "durationSeconds": 561
+      }
+    ]
+  },
+  "plan": {
+    "videoTitle": "The Rise of the Jensen Huang World Tour Memes: Why the Internet Loves NVIDIA's CEO",
+    "videoDescription": "Explore the most viewed and viral memes surrounding NVIDIA CEO Jensen Huang, from his leather jacket world tour to viral internet culture highlights.",
+    "targetAudience": "Tech enthusiasts, stock market watchers, and internet meme culture fans",
+    "videoDurationSeconds": 60,
+    "aspectRatio": "9:16",
+    "visualStyle": "Fast-paced dynamic vertical meme compilation style with bold captions and graphic overlays",
+    "scenes": [
+      {
+        "sceneNumber": 1,
+        "sceneTitle": "Introduction to the Jensen Huang Meme Phenomenon",
+        "durationSeconds": 15,
+        "purpose": "Hook the viewer by showcasing the sheer scale and popularity of Jensen Huang memes across social media.",
+        "visualDirection": "Show rapid-fire cuts of popular thumbnail styles and search queries related to Jensen Huang memes.",
+        "narration": "Have you ever wondered why NVIDIA CEO Jensen Huang suddenly became one of the most viral meme icons on the internet?",
+        "onScreenText": [
+          "JENSEN HUANG MEME TOUR",
+          "Over 400K+ Views!"
+        ],
+        "assetRequirements": [
+          "Dynamic background motion graphics",
+          "Bold sans-serif text overlays"
+        ],
+        "audioDirection": "Upbeat electronic intro beat with a rising whoosh sound effect",
+        "sourceVideoIds": [
+          "SdnCvYmIjEU"
+        ]
+      },
+      {
+        "sceneNumber": 2,
+        "sceneTitle": "The World Tour and Viral Headlines",
+        "durationSeconds": 25,
+        "purpose": "Highlight the context behind the viral world tour and news coverage.",
+        "visualDirection": "Display mockups of news article headlines and trending YouTube video titles discussing the memes.",
+        "narration": "From his legendary tech keynotes to unexpected viral headlines, fans and creators have turned his appearances into top-tier internet culture.",
+        "onScreenText": [
+          "Jansen Huang World Tour",
+          "Viral News & Reactions"
+        ],
+        "assetRequirements": [
+          "Simulated browser windows",
+          "Zoom-in graphic elements on key phrases"
+        ],
+        "audioDirection": "Rhythmic tech-house background beat continuing with slight tension building",
+        "sourceVideoIds": [
+          "SdnCvYmIjEU",
+          "3hO6hbU2v6o"
+        ]
+      },
+      {
+        "sceneNumber": 3,
+        "sceneTitle": "Compilation Highlights and Call to Action",
+        "durationSeconds": 20,
+        "purpose": "Summarize the compilation trend and encourage viewer engagement.",
+        "visualDirection": "Show teaser clips of funny compilation moments with bright graphic reaction stickers.",
+        "narration": "Check out the full meme compilations linked online, and let us know your favorite Jensen Huang moment in the comments below!",
+        "onScreenText": [
+          "What is your favorite meme?",
+          "Subscribe for more tech culture!"
+        ],
+        "assetRequirements": [
+          "Call-to-action button graphics",
+          "End screen layout template"
+        ],
+        "audioDirection": "Beat drops into a lighter, uplifting outro loop",
+        "sourceVideoIds": [
+          "e2swttWkqN8"
+        ]
+      }
+    ],
+    "musicDirection": "Upbeat, energetic electronic background track suitable for fast-paced vertical video formats.",
+    "productionNotes": [
+      "Verify copyright permissions and fair use guidelines before incorporating third-party video clips or screenshots.",
+      "Ensure all referenced video titles and view counts are cross-checked for accuracy prior to final publishing.",
+      "Flag any unverified news claims mentioned in source videos for compliance review."
+    ]
+  }
+}

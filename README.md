@@ -64,7 +64,8 @@ Run `npm run typecheck` to check types,
 `npm test` to run tests, and `npm run build` to compile; after building, use
 `npm start -- "<topic>"` for the compiled CLI or `npm run mcp:youtube` to launch
 the stdio MCP server. Run `npx tsx src/execute/test-renderer.ts` to render a test video
-with FFmpeg.
+with FFmpeg, or `npx tsx src/execute/test-source-manager.ts` to download and
+check authorized source files.
 
 Run in development mode with a topic:
 
@@ -217,6 +218,26 @@ results, the workflow retries using only the topic, which uses additional YouTub
 API quota. The combined source duration is not guaranteed to match the
 requested duration.
 
+## Source file download and check
+
+Save the workflow JSON as `production-output.json` in the project directory.
+Install yt-dlp and make sure it is on `PATH`. Only run this for selected videos
+you are authorized to download and reuse:
+
+```sh
+npx tsx src/execute/test-source-manager.ts
+```
+
+The checker also recognizes yt-dlp's default `title [videoId].mp4` filename in
+`assets/sources` or the project directory. Missing videos are downloaded to
+`assets/sources/<videoId>.mp4` with `--ignore-config --verbose -f 18
+--no-overwrites --no-playlist`. Existing files are not overwritten; remove or
+replace an empty target file before retrying. It reports actual paths and fails
+if a download fails or a source remains missing or empty. If multiple default
+filenames match an ID in the same directory, rename the intended file to
+`<videoId>.mp4` in `assets/sources`. Format `18` may not be available for every
+video. The script does not verify video contents or reuse rights.
+
 ## Test video renderer
 
 Install FFmpeg with the `drawtext` filter and `libx264` encoder, and make sure
@@ -245,6 +266,7 @@ src/
     clip-selector.ts    # Selects whole-video candidates from metadata
     context-analyzer.ts # Extracts and validates structured request context
     gemini.ts           # Calls Gemini and returns generated text
+    source-manager.ts   # Downloads and checks selected source videos
     video-production-planner.ts # Generates and validates a scene-by-scene plan
     video-workflow.ts   # Connects request analysis, discovery, selection, and planning
   index.ts              # CLI entry point
@@ -254,6 +276,7 @@ src/
     test-clip-selector.ts # Connected discovery and planning example
     test-context.ts       # Example request analysis
     test-renderer.ts      # Example test video renderer
+    test-source-manager.ts # Downloads and checks selected source video files
     test-video-planner.ts # Example request analysis and production planning
 ```
 
