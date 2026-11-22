@@ -61,6 +61,22 @@ function directoryFiles(directory: string): string[] {
   }
 }
 
+export function clearSourceAndOutputDirectories(rootDirectory = process.cwd()):
+  { sourceDirectory: string; outputDirectory: string } {
+  const root = path.resolve(rootDirectory);
+  const sourceDirectory = path.join(root, "assets", "sources");
+  const outputDirectory = path.join(root, "output");
+
+  for (const directory of [sourceDirectory, outputDirectory]) {
+    fs.mkdirSync(directory, { recursive: true });
+    for (const entry of fs.readdirSync(directory)) {
+      fs.rmSync(path.join(directory, entry), { recursive: true, force: true });
+    }
+  }
+
+  return { sourceDirectory, outputDirectory };
+}
+
 export function checkSourceFiles(
   production: ProductionInput,
   rootDirectory = process.cwd(),

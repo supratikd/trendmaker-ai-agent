@@ -72,6 +72,10 @@ test("passes analyzed context and every MCP result to the selector", async (t) =
   assert.deepEqual(candidates, videos);
   const prompt = bodies[1].contents[0].parts[0].text;
   assert.ok(prompt.includes(JSON.stringify(context, null, 2)));
+  assert.ok(prompt.includes("pairwise thematic similarity"));
+  assert.ok(prompt.includes("Match the visual and editorial vibe"));
+  assert.ok(prompt.includes("supplied description, tags"));
+  assert.ok(prompt.includes("Rank view counts only after relevance and thematic fit"));
   for (const candidate of videos) assert.ok(prompt.includes(candidate.url));
   assert.deepEqual(selected, {
     title: "Candidates",

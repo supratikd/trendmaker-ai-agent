@@ -42,7 +42,8 @@ test("searches, filters at three minutes, ranks, and limits results", async () =
   assert.ok(result.results.every((item) => item.license === "creativeCommon"));
   assert.equal(result.results[0].url, "https://www.youtube.com/watch?v=v11");
   assert.deepEqual(Object.keys(result.results[0]), [
-    "videoId", "license", "title", "channel", "publishedAt", "durationSeconds",
+    "videoId", "license", "title", "channel", "publishedAt",
+    "description", "tags", "categoryId", "durationSeconds",
     "views", "likes", "comments", "url", "thumbnail",
   ]);
   assert.equal(calls[0].url.searchParams.get("q"), "test");

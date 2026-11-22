@@ -138,12 +138,39 @@ test("requires source-aware scenes to reference supplied candidates", async (t) 
 
   result.scenes[0].sourceVideoIds = ["source"];
   result.scenes[1].sourceVideoIds = ["source"];
-  await assert.rejects(generateVideoProductionPlan(context, sources), /does not use selected source video: source2/);
+  await assert.rejects(generateVideoProductionPlan(context, sources), /Source video source is reused/);
 
-  result.scenes[1] = { ...result.scenes[1], durationSeconds: 121, sourceVideoIds: ["source"] };
+  result.scenes = [
+    { ...scene(1, 121), sourceVideoIds: ["source"] },
+    { ...scene(2, 59), sourceVideoIds: ["source2"] },
+  ];
+  result.videoDurationSeconds = 180;
   await assert.rejects(
     generateVideoProductionPlan(context, [sources[0]]),
     /provide only 120s in total/,
+  );
+});
+
+test("rejects repeated source videos across production scenes", async (t) => {
+  const sources = [
+    {
+      order: 1, videoId: "source", license: "creativeCommon", title: "Source",
+      url: "https://www.youtube.com/watch?v=source",
+      durationSeconds: 120, reason: "Relevant title",
+    },
+  ];
+  const repeated = plan();
+  repeated.scenes = [
+    { ...scene(1, 60), sourceVideoIds: ["source"] },
+    { ...scene(2, 120), sourceVideoIds: ["source"] },
+  ];
+  repeated.videoDurationSeconds = 180;
+  t.mock.method(globalThis, "fetch", async () => new Response(JSON.stringify({
+    candidates: [{ content: { role: "model", parts: [{ text: JSON.stringify(repeated) }] } }],
+  }), { headers: { "content-type": "application/json" } }));
+  await assert.rejects(
+    generateVideoProductionPlan(context, sources),
+    /Source video source is reused/,
   );
 });
 

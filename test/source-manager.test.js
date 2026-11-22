@@ -4,7 +4,29 @@ import os from "node:os";
 import path from "node:path";
 import childProcess from "node:child_process";
 import { test } from "node:test";
-import { checkSourceFiles, downloadMissingSourceFiles } from "../src/services/source-manager.ts";
+import {
+  checkSourceFiles,
+  clearSourceAndOutputDirectories,
+  downloadMissingSourceFiles,
+} from "../src/services/source-manager.ts";
+
+test("clears source and output directories before a new production", (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "trendmaker-cleanup-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const sources = path.join(root, "assets", "sources");
+  const output = path.join(root, "output");
+  fs.mkdirSync(sources, { recursive: true });
+  fs.mkdirSync(output, { recursive: true });
+  fs.writeFileSync(path.join(sources, "old.mp4"), "old source");
+  fs.writeFileSync(path.join(output, "old.mp4"), "old output");
+  fs.mkdirSync(path.join(output, "stale-temp"));
+
+  const cleared = clearSourceAndOutputDirectories(root);
+  assert.deepEqual(fs.readdirSync(cleared.sourceDirectory), []);
+  assert.deepEqual(fs.readdirSync(cleared.outputDirectory), []);
+  assert.equal(fs.statSync(cleared.sourceDirectory).isDirectory(), true);
+  assert.equal(fs.statSync(cleared.outputDirectory).isDirectory(), true);
+});
 
 const clip = (videoId) => ({
   order: 1, videoId, title: "Video", url: `https://www.youtube.com/watch?v=${videoId}`,

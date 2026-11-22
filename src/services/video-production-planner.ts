@@ -180,6 +180,12 @@ export async function generateVideoProductionPlan(
     if (new Set(sceneSourceIds).size !== sceneSourceIds.length) {
       throw new Error(`Scene ${scene.sceneNumber} contains duplicate source video IDs.`);
     }
+    const reusedSource = sceneSourceIds.find((videoId) => referencedSources.has(videoId));
+    if (reusedSource) {
+      throw new Error(
+        `Source video ${reusedSource} is reused. Each selected source may appear in exactly one scene.`,
+      );
+    }
     if (sources.length > 0 && sceneSourceIds.length === 0) {
       throw new Error(`Scene ${scene.sceneNumber} must reference at least one selected source video.`);
     }
@@ -201,7 +207,8 @@ export async function generateVideoProductionPlan(
       const originalSourceCount = sceneSourceIds.length;
       for (const source of sources) {
         if (sceneSourceIds.length >= scene.durationSeconds ||
-            sceneSourceIds.includes(source.videoId)) {
+            sceneSourceIds.includes(source.videoId) ||
+            referencedSources.has(source.videoId)) {
           continue;
         }
         sceneSourceIds.push(source.videoId);
