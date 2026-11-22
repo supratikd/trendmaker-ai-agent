@@ -138,10 +138,84 @@ test("requires source-aware scenes to reference supplied candidates", async (t) 
 
   result.scenes[0].sourceVideoIds = ["source"];
   result.scenes[1].sourceVideoIds = ["source"];
-  await assert.rejects(generateVideoProductionPlan(context, sources), /does not use selected source video: source2/);
+  await assert.rejects(generateVideoProductionPlan(context, sources), /Source video source is reused/);
 
-  result.scenes[1] = { ...result.scenes[1], durationSeconds: 121, sourceVideoIds: ["source"] };
-  await assert.rejects(generateVideoProductionPlan(context, sources), /provide only 120s in total/);
+  result.scenes = [
+    { ...scene(1, 121), sourceVideoIds: ["source"] },
+    { ...scene(2, 59), sourceVideoIds: ["source2"] },
+  ];
+  result.videoDurationSeconds = 180;
+  await assert.rejects(
+    generateVideoProductionPlan(context, [sources[0]]),
+    /provide only 120s in total/,
+  );
+});
+
+test("rejects repeated source videos across production scenes", async (t) => {
+  const sources = [
+    {
+      order: 1, videoId: "source", license: "creativeCommon", title: "Source",
+      url: "https://www.youtube.com/watch?v=source",
+      durationSeconds: 120, reason: "Relevant title",
+    },
+  ];
+  const repeated = plan();
+  repeated.scenes = [
+    { ...scene(1, 60), sourceVideoIds: ["source"] },
+    { ...scene(2, 120), sourceVideoIds: ["source"] },
+  ];
+  repeated.videoDurationSeconds = 180;
+  t.mock.method(globalThis, "fetch", async () => new Response(JSON.stringify({
+    candidates: [{ content: { role: "model", parts: [{ text: JSON.stringify(repeated) }] } }],
+  }), { headers: { "content-type": "application/json" } }));
+  await assert.rejects(
+    generateVideoProductionPlan(context, sources),
+    /Source video source is reused/,
+  );
+});
+
+test("fills scene footage gaps from selected clips or shortens an unspecified plan", async (t) => {
+  const sources = [
+    {
+      order: 1, videoId: "source", license: "creativeCommon", title: "Source",
+      url: "https://www.youtube.com/watch?v=source",
+      durationSeconds: 6, reason: "Relevant title",
+    },
+    {
+      order: 2, videoId: "source2", license: "creativeCommon", title: "Source 2",
+      url: "https://www.youtube.com/watch?v=source2",
+      durationSeconds: 2, reason: "Relevant title",
+    },
+  ];
+  let result = {
+    ...plan(),
+    videoDurationSeconds: 8,
+    scenes: [{ ...scene(1, 8), sourceVideoIds: ["source"] }],
+  };
+  t.mock.method(globalThis, "fetch", async () =>
+    new Response(JSON.stringify({
+      candidates: [{ content: { role: "model", parts: [{ text: JSON.stringify(result) }] } }],
+    }), { headers: { "content-type": "application/json" } }));
+
+  const compiled = await generateVideoProductionPlan(
+    { ...context, targetDuration: null },
+    sources,
+  );
+  assert.deepEqual(compiled.scenes[0].sourceVideoIds, ["source", "source2"]);
+  assert.ok(compiled.productionNotes.some((note) => note.includes("supplemented")));
+
+  result = {
+    ...result,
+    videoDurationSeconds: 8,
+    scenes: [{ ...scene(1, 8), sourceVideoIds: ["source"] }],
+  };
+  const shortened = await generateVideoProductionPlan(
+    { ...context, targetDuration: null },
+    [sources[0]],
+  );
+  assert.equal(shortened.scenes[0].durationSeconds, 6);
+  assert.equal(shortened.videoDurationSeconds, 6);
+  assert.ok(shortened.productionNotes.some((note) => note.includes("shortened")));
 });
 
 test("validates aspect ratios, vertical Shorts, and required scene fields", async (t) => {

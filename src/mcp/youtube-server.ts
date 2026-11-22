@@ -17,7 +17,9 @@ server.registerTool(
     description:
       "Search YouTube by keyword and return up to 10 relevant videos marked Creative Commons " +
       "and up to 3 minutes long, ranked by actual view count. This does not verify vertical " +
-      "Shorts format or independently establish ownership of all content.",
+      "Shorts format or independently establish ownership of all content. Results include " +
+      "title, channel, description, tags, category, duration, and engagement metadata for " +
+      "theme and vibe matching.",
     inputSchema: {
       query: z.string().refine((value) => value.trim().length > 0, {
         message: "Query must not be blank.",

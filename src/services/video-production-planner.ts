@@ -174,10 +174,17 @@ export async function generateVideoProductionPlan(
   const sourceIds = new Set(sources.map((source) => source.videoId));
   const sourceById = new Map(sources.map((source) => [source.videoId, source]));
   const referencedSources = new Set<string>();
+  let adjustedDuration = false;
   for (const scene of plan.scenes) {
     const sceneSourceIds = scene.sourceVideoIds;
     if (new Set(sceneSourceIds).size !== sceneSourceIds.length) {
       throw new Error(`Scene ${scene.sceneNumber} contains duplicate source video IDs.`);
+    }
+    const reusedSource = sceneSourceIds.find((videoId) => referencedSources.has(videoId));
+    if (reusedSource) {
+      throw new Error(
+        `Source video ${reusedSource} is reused. Each selected source may appear in exactly one scene.`,
+      );
     }
     if (sources.length > 0 && sceneSourceIds.length === 0) {
       throw new Error(`Scene ${scene.sceneNumber} must reference at least one selected source video.`);
@@ -190,10 +197,53 @@ export async function generateVideoProductionPlan(
         throw new Error(`Scene ${scene.sceneNumber} references unknown source video: ${videoId}`);
       }
       sceneSources.push(source);
-      referencedSources.add(videoId);
     }
+
+    let availableDuration = sceneSources.reduce(
+      (total, source) => total + source.durationSeconds,
+      0,
+    );
+    if (availableDuration < scene.durationSeconds) {
+      const originalSourceCount = sceneSourceIds.length;
+      for (const source of sources) {
+        if (sceneSourceIds.length >= scene.durationSeconds ||
+            sceneSourceIds.includes(source.videoId) ||
+            referencedSources.has(source.videoId)) {
+          continue;
+        }
+        sceneSourceIds.push(source.videoId);
+        sceneSources.push(source);
+        availableDuration += source.durationSeconds;
+        if (availableDuration >= scene.durationSeconds) break;
+      }
+      if (sceneSourceIds.length > originalSourceCount) {
+        plan.productionNotes.push(
+          `Scene ${scene.sceneNumber} was supplemented with additional selected clips ` +
+          `to cover its planned duration.`,
+        );
+      }
+    }
+
+    if (availableDuration < scene.durationSeconds && context.targetDuration === null) {
+      scene.durationSeconds = availableDuration;
+      adjustedDuration = true;
+      plan.productionNotes.push(
+        `Scene ${scene.sceneNumber} was shortened to ${availableDuration}s to fit its ` +
+        `available selected footage.`,
+      );
+    }
+
+    for (const videoId of sceneSourceIds) referencedSources.add(videoId);
     allocateSceneSourceDurations(scene.sceneNumber, scene.durationSeconds, sceneSources);
   }
+
+  if (adjustedDuration) {
+    plan.videoDurationSeconds = plan.scenes.reduce(
+      (total, scene) => total + scene.durationSeconds,
+      0,
+    );
+  }
+
   if (sources.length > 0) {
     const unusedSource = sources.find((source) => !referencedSources.has(source.videoId));
     if (unusedSource) {

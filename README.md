@@ -7,7 +7,7 @@ YouTube MCP finds candidate videos; the clip selector picks relevant sources;
 and the production planner shapes them into timed scenes. After you confirm
 reuse permission, `yt-dlp` gets the media, FFprobe checks it, and FFmpeg
 stitches everything into a vertical MP4 with subtle motion and transitions—
-ready for you to review and share.
+then uploads it to YouTube as an unlisted video for you to review.
 
 `Your idea → Gemini Context Analyzer → YouTube MCP search → Clip Selector → Scene Planner → Authorized sources → FFprobe → FFmpeg → Shareable 9:16 MP4`
 
@@ -27,13 +27,19 @@ ready for you to review and share.
   authorized.
 - Inspect source duration, dimensions, frame rate, and audio with FFprobe.
 - Render a normalized 1080×1920, 30 fps MP4 with FFmpeg, subtle zoom motion,
-  fade transitions, and preserved source audio.
+  preserved source audio, and transitions suited to the requested format.
+- Render short compilations as an ordered clip sequence with bold numbered
+  labels and smooth transitions between clips.
 - Validate the final MP4's duration, dimensions, frame rate, and codecs before
   it is placed in `output/`.
+- Replace prior render artifacts with the latest video at `output/output.mp4`.
+- Clear `assets/sources/` and `output/` at the start of every full `produce` run
+  so stale source videos or rendered artifacts cannot enter the next production.
+- Upload the completed MP4 to YouTube as an unlisted video using OAuth.
 
-The renderer adds **no generated text overlays, captions, voiceover, or music**.
-Plans may contain those as editorial notes; source audio is preserved when
-present, and the video focuses on the selected footage.
+The renderer adds numbered labels for short compilations, but no other generated
+text overlays, captions, voiceover, or music. Plans may contain those as
+editorial notes; source audio is preserved when present.
 
 ## The workflow: prompt to MP4
 
@@ -52,14 +58,18 @@ present, and the video focuses on the selected footage.
    downloads missing files with `yt-dlp`.
 6. **Inspect media.** FFprobe checks each source's duration, dimensions, frame
    rate, and audio. Scene time is allocated within each source's available
-   footage; rendering fails if the selected clips cannot supply enough time.
+   footage. If no target duration was requested, the plan is shortened to fit
+   available footage when necessary; a requested duration cannot exceed the
+   selected sources' available footage.
 7. **Render and verify.** FFmpeg scales and crops footage to vertical format,
-   applies subtle motion and fades, normalizes video/audio, and combines the
-   planned clips. FFprobe verifies the final MP4 before it is promoted.
-8. **Review the result.** A plan generated from a prompt is saved as
+   applies subtle motion, uses smooth transitions and numbered labels for short
+   compilations, normalizes video/audio, and combines the planned clips. FFprobe
+   verifies the final MP4 before it is promoted to `output/output.mp4`. The
+   `output/` directory is cleared immediately before rendering.
+8. **Upload and review.** After a successful render, the video is uploaded to
+   YouTube as unlisted. A plan generated from a prompt is saved as
    `production-output.json`; the MP4 is written to `output/`. A plan loaded
-   with `--from-file` is used as provided. Nothing is automatically uploaded
-   to a social platform.
+   with `--from-file` is used as provided.
 
 ### Create a video
 
@@ -85,7 +95,10 @@ restore exhausted quota.
 - Node.js and npm
 - A Gemini API key from [Google AI Studio](https://aistudio.google.com/apikey)
 - A YouTube Data API v3 key for discovery and source verification
+- A Google Cloud Desktop OAuth client with YouTube upload enabled
 - `yt-dlp`, FFmpeg, and FFprobe on `PATH` for full video production
+- An NVIDIA GPU and compatible driver; production video is encoded with
+  FFmpeg's `h264_nvenc` encoder
 
 ## Setup
 
@@ -111,6 +124,21 @@ YOUTUBE_API_KEY=replace_with_your_youtube_api_key
 
 Never commit `.env` or share your API key. If a key is exposed, revoke it in
 Google AI Studio and create a replacement.
+
+For YouTube uploads, enable the YouTube Data API v3 in Google Cloud, create a
+Desktop OAuth client, and save its downloaded JSON as
+`credentials/youtube-oauth-client.json`. Authorize the YouTube channel to
+receive uploads:
+
+```powershell
+npm.cmd run youtube:auth
+```
+
+This opens Google's consent flow and saves the refreshable token locally in
+`credentials/youtube-upload-token.json`. Both files are ignored by Git. The
+automatic upload uses the plan's title and description and always sets privacy
+to **unlisted**; review the video in YouTube Studio before making it public.
+OAuth authorization is separate from the `YOUTUBE_API_KEY` used for discovery.
 
 ## Explore the pipeline
 
@@ -327,32 +355,65 @@ npm.cmd run produce -- --authorized-sources --from-file production-output.json
 ```
 
 This rechecks the selected source files, downloads missing ones, and renders one
-MP4 under `output/`. To run context analysis, candidate search and selection,
-planning, download, and rendering together, provide a request instead:
+`output/output.mp4`, then uploads it to YouTube as unlisted. Each render clears
+existing contents of `output/`. To run context
+analysis, candidate search and selection, planning, download, rendering, and
+upload together, provide a request instead:
 
 ```powershell
 npm.cmd run produce -- --authorized-sources "Create a Jensen Huang meme video for YouTube Shorts"
 ```
 
+To iterate on FFmpeg using an existing production JSON without calling Gemini,
+discovery, or `yt-dlp`, render directly from the plan. This command still
+uploads the finished video as unlisted:
+
+```powershell
+npm.cmd run render:production -- production-output.json
+```
+
+The renderer uses source files already present in `assets/sources/` (or the
+project directory) and fails if any selected source is missing. Pass another
+JSON path to render a different saved plan.
+
+To retry an upload after a completed render:
+
+```powershell
+npm.cmd run upload:post
+```
+
+The upload command uses `output/output.mp4` and `production-output.json` by
+default. Pass a different production JSON path when needed.
+
 PowerShell users should use `npm.cmd` so npm forwards the options after `--` to
-the production script. The workflow needs `YOUTUBE_API_KEY`, `yt-dlp`, and
-FFmpeg (`ffprobe` included) on `PATH`. Only use the authorization flag when
-downloading and reusing all selected sources is allowed. Source audio is
-preserved when present; no generated text overlays, captions, narration, or
-music are added. Scene directions are planning guidance; the renderer applies
-ordered source clips, a vertical crop, a subtle zoom, and fade transitions, but
+the production script. The workflow needs `YOUTUBE_API_KEY`, `yt-dlp`, FFmpeg
+(`ffprobe` included) on `PATH`, and an NVIDIA GPU with a working NVENC driver.
+The final H.264 encode uses the GPU; temporary segment encodes and video filters
+such as scaling, cropping, zoom, and text rendering run on the CPU. Only use the
+authorization flag when downloading and reusing all selected sources is allowed.
+Source audio is preserved when present; short compilations receive bold
+sequential clip labels and smooth transitions. Every video ends on a separate
+black card with centered white “Made by TrendMaker AI” text that zooms out and
+a short generated ascending chime. The end card uses up to the final three
+seconds of the planned duration. No other generated text overlays, captions,
+narration, or music are added. Scene directions are planning guidance; the
+renderer applies ordered source clips, a vertical crop, and a subtle zoom, but
 does not add generated assets.
 Scene duration is distributed across planned source clips from their beginnings,
 without allocating beyond a clip's duration; unused time is redistributed to
-clips with remaining footage.
+clips with remaining footage. Compilation transitions are crossfades that
+preserve the planned total duration.
 FFprobe inspects source duration, dimensions, frame rate, and audio before rendering,
 then verifies the output's dimensions, duration, frame rate, and codecs before it
-is moved into `output/`. FFmpeg's routine progress output is suppressed; errors
-are still shown. Existing output files are not overwritten.
+is moved into `output/`. If FFprobe finds a source up to one second shorter than
+its whole-second YouTube duration, the renderer holds the final frame and pads
+audio to preserve the planned timeline; larger shortfalls fail with a clear error.
+FFmpeg's routine progress output is suppressed; errors are still shown. Existing
+output files are not overwritten.
 
 ## Test video renderer
 
-Install FFmpeg with the `drawtext` filter and `libx264` encoder, and make sure
+Install FFmpeg with the `drawtext` filter and `h264_nvenc` encoder, and make sure
 `ffmpeg` is on `PATH`. Run `npx tsx src/execute/test-renderer.ts` to create
 `output/trendmaker-test.mp4`: a five-second, silent, 1080x1920 black video
 with centered text. The renderer overwrites an existing output file. This demo
@@ -379,6 +440,7 @@ src/
     context-analyzer.ts # Extracts and validates structured request context
     gemini.ts           # Calls Gemini and returns generated text
     source-manager.ts   # Downloads and checks selected source videos
+    upload-post.ts      # Uploads completed videos through the YouTube Data API
     video-production-planner.ts # Generates and validates a scene-by-scene plan
     video-workflow.ts   # Connects request analysis, discovery, selection, and planning
   index.ts              # CLI entry point
@@ -387,7 +449,10 @@ src/
     test-agent.ts         # Example YouTube discovery
     test-clip-selector.ts # Connected discovery and planning example
     test-context.ts       # Example request analysis
-    produce-video.ts     # Runs planning, downloading, and rendering
+    produce-video.ts     # Runs planning, downloading, rendering, and upload
+    render-production.ts # Renders a saved plan and uploads the result
+    test-upload-post.ts  # Uploads output/output.mp4 to YouTube
+    youtube-upload-auth.ts # Authorizes YouTube uploads using desktop OAuth
     test-renderer.ts      # Example test video renderer
     test-source-manager.ts # Downloads and checks selected source video files
     test-video-planner.ts # Example request analysis and production planning
