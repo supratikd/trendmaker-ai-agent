@@ -31,6 +31,13 @@ Identify:
 Allowed intents:
 video_discovery, video_creation, research, comparison
 
+- Recognize requests for a video compilation, highlight reel, or montage, and preserve
+  that format in contentStyle and actions. If the user specifies a duration, use it;
+  otherwise leave targetDuration null so the production planner can fit the plan to
+  the available source footage.
+- For a compilation request, include the requested topic, intended platform, explicit
+  duration if any, audience/style when supplied, and the request to sequence selected
+  clips in the actions.
 - Use null for an unspecified audience, style, or duration, and provide at least one action.
 - Mention explicitly requested vertical, portrait, horizontal, or landscape orientation in contentStyle.
 Return ONLY valid JSON.
@@ -60,9 +67,15 @@ be used by at least one scene. List sourceVideoIds in the intended cut order.
 The renderer divides a scene's duration evenly across its listed sources and starts
 each source at its beginning, capping each allocation at that source's duration.
 Any remaining time is redistributed evenly to sources with remaining footage.
+Each scene's duration must not exceed the combined duration of its assigned sources.
+Prefer a realistic duration based on available footage; do not assign footage that is
+too short and expect it to be looped.
+For compilations, list clips in the intended viewing order and keep the scenes focused
+on stitching those clips together.
 Do not imply that it can find specific moments.
-VisualDirection is editorial guidance, not a description of verified source footage;
-the renderer does not add transitions, effects, or generated assets.
+VisualDirection is editorial guidance, not a description of verified source footage.
+Short compilation renders add numbered clip labels and smooth transitions; do not
+describe those generated elements as source footage.
 Do not invent timestamps or imply a scene's actual footage or reuse rights have been verified.
 
 ` : ""}
@@ -71,6 +84,9 @@ INSTRUCTIONS:
 - Use 9:16 aspect ratio and a duration of at most 180 seconds.
 - Divide the video into sequentially numbered scenes with positive integer durations in seconds.
 - Set videoDurationSeconds to the sum of all scene durations. If a target duration is specified, both must equal it; otherwise choose an appropriate duration.
+- If the request is for a compilation, make a clip-by-clip sequence with a clear beginning,
+  middle, and ending. For a short compilation without an explicit duration, fit the plan
+  to the selected footage rather than inventing additional footage.
 - For each scene, describe its purpose, visuals, narration, on-screen text, required assets, and audio.
 - On-screen text and narration are editorial notes only; the renderer preserves source footage and audio without adding text or voiceover.
 - Source audio is retained. MusicDirection and audioDirection are planning notes only; no music or sound effects are added.

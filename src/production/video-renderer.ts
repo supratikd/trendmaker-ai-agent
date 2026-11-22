@@ -8,6 +8,16 @@ import { allocateSceneSourceDurations } from "../services/scene-source-allocatio
 import { inspectVideoFile } from "./ffprobe-inspector.js";
 import type { VideoFileProperties } from "./ffprobe-inspector.js";
 
+function videoEncoderArgs(): string[] {
+  return [
+    "-c:v", "h264_nvenc",
+    "-preset", "p4",
+    "-rc", "vbr",
+    "-cq", "23",
+    "-b:v", "0",
+  ];
+}
+
 export function createTestVideo(): Promise<void> {
   return new Promise((resolve, reject) => {
     const outputDir = path.resolve("output");
@@ -21,7 +31,7 @@ export function createTestVideo(): Promise<void> {
       "-i", "color=c=black:s=1080x1920:r=30:d=5",
       "-vf",
       "drawtext=text='TRENDMAKER AI':fontcolor=white:fontsize=76:x=(w-text_w)/2:y=(h-text_h)/2",
-      "-c:v", "libx264",
+      ...videoEncoderArgs(),
       "-pix_fmt", "yuv420p",
       "-movflags", "+faststart",
       outputFile
@@ -43,6 +53,10 @@ export function createTestVideo(): Promise<void> {
 }
 
 const productionRenderSchema = z.object({
+  context: z.object({
+    contentStyle: z.string().optional(),
+    actions: z.array(z.string()).optional(),
+  }).optional(),
   selection: z.object({
     clips: z.array(z.object({
       videoId: z.string().regex(/^[A-Za-z0-9_-]+$/),
@@ -52,6 +66,7 @@ const productionRenderSchema = z.object({
   }),
   plan: z.object({
     videoTitle: z.string().trim().min(1),
+    visualStyle: z.string().optional(),
     videoDurationSeconds: z.number().int().positive(),
     scenes: z.array(z.object({
       sceneNumber: z.number().int().positive(),
@@ -68,6 +83,18 @@ export interface RenderSegment {
   sceneNumber: number;
   durationSeconds: number;
   sourceVideoId: string | null;
+}
+
+const COMPILATION_TRANSITION_SECONDS = 0.35;
+
+function isShortCompilation(production: z.infer<typeof productionRenderSchema>): boolean {
+  const hints = [
+    production.context?.contentStyle,
+    ...(production.context?.actions ?? []),
+    production.plan.visualStyle,
+    production.plan.videoTitle,
+  ];
+  return hints.some((hint) => /compilation|montage|highlight reel/i.test(hint ?? ""));
 }
 
 export function createRenderTimeline(production: unknown): RenderSegment[] {
@@ -148,6 +175,29 @@ function safeFileName(title: string): string {
     .toLowerCase() || "trendmaker-video";
 }
 
+function compilationFontFile(): string {
+  const candidates = process.platform === "win32"
+    ? [
+      path.join(process.env.WINDIR ?? "C:\\Windows", "Fonts", "arialbi.ttf"),
+      path.join(process.env.WINDIR ?? "C:\\Windows", "Fonts", "segoeuiz.ttf"),
+    ]
+    : process.platform === "darwin"
+      ? [
+        "/System/Library/Fonts/Supplemental/Arial Bold Italic.ttf",
+      ]
+      : [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-BoldOblique.ttf",
+        "/usr/share/fonts/truetype/liberation2/LiberationSans-BoldItalic.ttf",
+      ];
+  const fontPath = candidates.find((candidate) => fs.existsSync(candidate));
+  if (!fontPath) {
+    throw new Error(
+      "Cannot render compilation labels: no supported bold italic font file was found.",
+    );
+  }
+  return fontPath.replace(/\\/g, "/").replace(/:/g, "\\:");
+}
+
 export async function renderProductionVideo(
   production: unknown,
   rootDirectory = process.cwd(),
@@ -159,6 +209,12 @@ export async function renderProductionVideo(
   const timeline = createRenderTimeline(parsed.data);
   const sourceResults = checkSourceFiles(parsed.data, rootDirectory);
   const sources = new Map(sourceResults.map((source) => [source.videoId, source]));
+  const sourceOrderById = new Map<string, number>();
+  for (const segment of timeline) {
+    if (segment.sourceVideoId && !sourceOrderById.has(segment.sourceVideoId)) {
+      sourceOrderById.set(segment.sourceVideoId, sourceOrderById.size + 1);
+    }
+  }
   const mediaProperties = new Map<string, VideoFileProperties>();
   console.log(`[FFPROBE] Inspecting ${sourceResults.length} source file(s)...`);
   for (const source of sourceResults) {
@@ -196,20 +252,39 @@ export async function renderProductionVideo(
 
   const temporaryDirectory = fs.mkdtempSync(path.join(outputDirectory, ".trendmaker-render-"));
   try {
+    const shortCompilation = isShortCompilation(parsed.data);
+    const compilationFont = shortCompilation ? compilationFontFile() : null;
     console.log(`[RENDER] Processing ${timeline.length} scene segment(s)...`);
     const segments: string[] = [];
     for (const [index, segment] of timeline.entries()) {
       console.log(`[RENDER] Rendering segment ${index + 1}/${timeline.length} (${segment.durationSeconds}s)...`);
       const segmentPath = path.join(temporaryDirectory, `segment-${index}.mp4`);
       const fadeDuration = 0.18;
+      const padDuration = shortCompilation && index < timeline.length - 1
+        ? COMPILATION_TRANSITION_SECONDS
+        : 0;
+      const outputDuration = segment.durationSeconds + padDuration;
+      const sourceOrder = segment.sourceVideoId
+        ? sourceOrderById.get(segment.sourceVideoId)
+        : index + 1;
       const videoFilter = [
         `scale=1080:1920:force_original_aspect_ratio=increase,` +
         `crop=1080:1920,setsar=1,fps=30,trim=duration=${segment.durationSeconds},` +
-        `setpts=PTS-STARTPTS,tpad=stop_mode=clone:stop_duration=${segment.durationSeconds}`,
+        `setpts=PTS-STARTPTS,tpad=stop_mode=clone:stop_duration=${segment.durationSeconds + padDuration}`,
         "zoompan=z='min(1.03\\,1+0.03*on/90)':" +
           "x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=1080x1920:fps=30",
-        `fade=t=in:st=0:d=${fadeDuration}`,
-        `fade=t=out:st=${Math.max(0, segment.durationSeconds - fadeDuration)}:d=${fadeDuration}`,
+        ...(shortCompilation
+          ? [
+            `drawtext=text='#${sourceOrder ?? index + 1}':fontfile='${compilationFont}':` +
+            "fontcolor=0xFFC928:fontsize=560:" +
+            "borderw=20:bordercolor=white:shadowcolor=black@0.85:shadowx=14:shadowy=14:" +
+            "x=(w-text_w)/2:y=(h-text_h)/2:" +
+            "alpha='if(lt(t\\,1)\\,1\\,if(lt(t\\,1.4)\\,1-(t-1)/0.4\\,0))'",
+          ]
+          : [
+            `fade=t=in:st=0:d=${fadeDuration}`,
+            `fade=t=out:st=${Math.max(0, segment.durationSeconds - fadeDuration)}:d=${fadeDuration}`,
+          ]),
       ].join(",");
       const args = ["-hide_banner", "-loglevel", "error", "-nostats", "-y"];
 
@@ -222,7 +297,7 @@ export async function renderProductionVideo(
         const audio = mediaProperties.get(segment.sourceVideoId)?.hasAudio ?? false;
         if (!audio) {
           args.push(
-            "-f", "lavfi", "-t", String(segment.durationSeconds), "-i",
+            "-f", "lavfi", "-t", String(outputDuration), "-i",
             "anullsrc=channel_layout=stereo:sample_rate=48000",
           );
         }
@@ -230,23 +305,22 @@ export async function renderProductionVideo(
           "-map", "0:v:0",
           "-map", audio ? "0:a:0" : "1:a:0",
           "-vf", videoFilter,
-          "-af", "aresample=48000,apad",
+          "-af", `aresample=48000,apad${padDuration ? `=pad_dur=${padDuration}` : ""}`,
         );
       } else {
         args.push(
           "-f", "lavfi", "-i",
-          `color=c=black:s=1080x1920:r=30:d=${segment.durationSeconds}`,
-          "-f", "lavfi", "-t", String(segment.durationSeconds), "-i",
+          `color=c=black:s=1080x1920:r=30:d=${outputDuration}`,
+          "-f", "lavfi", "-t", String(outputDuration), "-i",
           "anullsrc=channel_layout=stereo:sample_rate=48000",
           "-map", "0:v:0", "-map", "1:a:0", "-vf", videoFilter,
         );
       }
 
       args.push(
-        "-t", String(segment.durationSeconds),
+        "-t", String(outputDuration),
         "-r", "30",
-        "-c:v", "libx264",
-        "-preset", "medium",
+        ...videoEncoderArgs(),
         "-pix_fmt", "yuv420p",
         "-c:a", "aac",
         "-ar", "48000",
@@ -258,18 +332,60 @@ export async function renderProductionVideo(
       segments.push(segmentPath);
     }
 
-    const concatList = path.join(temporaryDirectory, "segments.txt");
     const stagedOutputPath = path.join(temporaryDirectory, "final.mp4");
-    fs.writeFileSync(
-      concatList,
-      segments.map((segment) => `file '${concatPath(segment)}'`).join("\n"),
-      "utf8",
-    );
-    await runProcess("ffmpeg", [
-      "-hide_banner", "-loglevel", "error", "-nostats",
-      "-f", "concat", "-safe", "0", "-i", concatList,
-      "-c", "copy", "-movflags", "+faststart", stagedOutputPath,
-    ]);
+    if (shortCompilation && segments.length > 1) {
+      const filterParts: string[] = [];
+      for (const [index] of segments.entries()) {
+        filterParts.push(
+          `[${index}:v]settb=AVTB,setpts=PTS-STARTPTS,format=yuv420p[v${index}]`,
+          `[${index}:a]aresample=48000,asetpts=PTS-STARTPTS[a${index}]`,
+        );
+      }
+      let offset = 0;
+      let videoInput = "v0";
+      let audioInput = "a0";
+      for (let index = 1; index < segments.length; index++) {
+        offset += timeline[index - 1].durationSeconds;
+        const videoOutput = index === segments.length - 1 ? "vout" : `vx${index}`;
+        const audioOutput = index === segments.length - 1 ? "aout" : `ax${index}`;
+        filterParts.push(
+          `[${videoInput}][v${index}]xfade=transition=smoothleft:` +
+          `duration=${COMPILATION_TRANSITION_SECONDS}:offset=${offset}[${videoOutput}]`,
+          `[${audioInput}][a${index}]acrossfade=d=${COMPILATION_TRANSITION_SECONDS}:` +
+          `c1=tri:c2=tri[${audioOutput}]`,
+        );
+        videoInput = videoOutput;
+        audioInput = audioOutput;
+      }
+      const args = ["-hide_banner", "-loglevel", "error", "-nostats"];
+      for (const segment of segments) args.push("-i", segment);
+      args.push(
+        "-filter_complex", filterParts.join(";"),
+        "-map", "[vout]", "-map", "[aout]",
+        "-t", String(parsed.data.plan.videoDurationSeconds),
+        "-r", "30",
+        ...videoEncoderArgs(),
+        "-pix_fmt", "yuv420p",
+        "-c:a", "aac",
+        "-ar", "48000",
+        "-ac", "2",
+        "-movflags", "+faststart",
+        stagedOutputPath,
+      );
+      await runProcess("ffmpeg", args);
+    } else {
+      const concatList = path.join(temporaryDirectory, "segments.txt");
+      fs.writeFileSync(
+        concatList,
+        segments.map((segment) => `file '${concatPath(segment)}'`).join("\n"),
+        "utf8",
+      );
+      await runProcess("ffmpeg", [
+        "-hide_banner", "-loglevel", "error", "-nostats",
+        "-f", "concat", "-safe", "0", "-i", concatList,
+        "-c", "copy", "-movflags", "+faststart", stagedOutputPath,
+      ]);
+    }
     console.log("[FFPROBE] Verifying the staged MP4...");
     const outputProperties = inspectVideoFile(stagedOutputPath);
     if (outputProperties.width !== 1080 || outputProperties.height !== 1920) {

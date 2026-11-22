@@ -7,6 +7,7 @@
     "dev": "tsx src/index.ts",
     "workflow": "tsx src/execute/test-clip-selector.ts",
     "produce": "tsx src/execute/produce-video.ts",
+    "render:production": "tsx src/execute/render-production.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",

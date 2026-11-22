@@ -27,13 +27,15 @@ ready for you to review and share.
   authorized.
 - Inspect source duration, dimensions, frame rate, and audio with FFprobe.
 - Render a normalized 1080×1920, 30 fps MP4 with FFmpeg, subtle zoom motion,
-  fade transitions, and preserved source audio.
+  preserved source audio, and transitions suited to the requested format.
+- Render short compilations as an ordered clip sequence with bold numbered
+  labels and smooth transitions between clips.
 - Validate the final MP4's duration, dimensions, frame rate, and codecs before
   it is placed in `output/`.
 
-The renderer adds **no generated text overlays, captions, voiceover, or music**.
-Plans may contain those as editorial notes; source audio is preserved when
-present, and the video focuses on the selected footage.
+The renderer adds numbered labels for short compilations, but no other generated
+text overlays, captions, voiceover, or music. Plans may contain those as
+editorial notes; source audio is preserved when present.
 
 ## The workflow: prompt to MP4
 
@@ -52,10 +54,13 @@ present, and the video focuses on the selected footage.
    downloads missing files with `yt-dlp`.
 6. **Inspect media.** FFprobe checks each source's duration, dimensions, frame
    rate, and audio. Scene time is allocated within each source's available
-   footage; rendering fails if the selected clips cannot supply enough time.
+   footage. If no target duration was requested, the plan is shortened to fit
+   available footage when necessary; a requested duration cannot exceed the
+   selected sources' available footage.
 7. **Render and verify.** FFmpeg scales and crops footage to vertical format,
-   applies subtle motion and fades, normalizes video/audio, and combines the
-   planned clips. FFprobe verifies the final MP4 before it is promoted.
+   applies subtle motion, uses smooth transitions and numbered labels for short
+   compilations, normalizes video/audio, and combines the planned clips. FFprobe
+   verifies the final MP4 before it is promoted.
 8. **Review the result.** A plan generated from a prompt is saved as
    `production-output.json`; the MP4 is written to `output/`. A plan loaded
    with `--from-file` is used as provided. Nothing is automatically uploaded
@@ -86,6 +91,8 @@ restore exhausted quota.
 - A Gemini API key from [Google AI Studio](https://aistudio.google.com/apikey)
 - A YouTube Data API v3 key for discovery and source verification
 - `yt-dlp`, FFmpeg, and FFprobe on `PATH` for full video production
+- An NVIDIA GPU and compatible driver; production video is encoded with
+  FFmpeg's `h264_nvenc` encoder
 
 ## Setup
 
@@ -334,17 +341,32 @@ planning, download, and rendering together, provide a request instead:
 npm.cmd run produce -- --authorized-sources "Create a Jensen Huang meme video for YouTube Shorts"
 ```
 
+To iterate on FFmpeg using an existing production JSON without calling Gemini,
+YouTube, or `yt-dlp`, render directly from the plan:
+
+```powershell
+npm.cmd run render:production -- production-output.json
+```
+
+The renderer uses source files already present in `assets/sources/` (or the
+project directory) and fails if any selected source is missing. Pass another
+JSON path to render a different saved plan.
+
 PowerShell users should use `npm.cmd` so npm forwards the options after `--` to
-the production script. The workflow needs `YOUTUBE_API_KEY`, `yt-dlp`, and
-FFmpeg (`ffprobe` included) on `PATH`. Only use the authorization flag when
+the production script. The workflow needs `YOUTUBE_API_KEY`, `yt-dlp`, FFmpeg
+(`ffprobe` included) on `PATH`, and an NVIDIA GPU with a working NVENC driver.
+H.264 encoding uses the GPU; video filters such as scaling, cropping, zoom, and
+text rendering still run on the CPU. Only use the authorization flag when
 downloading and reusing all selected sources is allowed. Source audio is
-preserved when present; no generated text overlays, captions, narration, or
-music are added. Scene directions are planning guidance; the renderer applies
-ordered source clips, a vertical crop, a subtle zoom, and fade transitions, but
-does not add generated assets.
+preserved when present; short compilations receive bold sequential clip labels
+and smooth transitions. No other generated text overlays, captions, narration,
+or music are added. Scene directions are planning guidance; the renderer applies
+ordered source clips, a vertical crop, and a subtle zoom, but does not add
+generated assets.
 Scene duration is distributed across planned source clips from their beginnings,
 without allocating beyond a clip's duration; unused time is redistributed to
-clips with remaining footage.
+clips with remaining footage. Compilation transitions are crossfades that
+preserve the planned total duration.
 FFprobe inspects source duration, dimensions, frame rate, and audio before rendering,
 then verifies the output's dimensions, duration, frame rate, and codecs before it
 is moved into `output/`. FFmpeg's routine progress output is suppressed; errors
@@ -352,7 +374,7 @@ are still shown. Existing output files are not overwritten.
 
 ## Test video renderer
 
-Install FFmpeg with the `drawtext` filter and `libx264` encoder, and make sure
+Install FFmpeg with the `drawtext` filter and `h264_nvenc` encoder, and make sure
 `ffmpeg` is on `PATH`. Run `npx tsx src/execute/test-renderer.ts` to create
 `output/trendmaker-test.mp4`: a five-second, silent, 1080x1920 black video
 with centered text. The renderer overwrites an existing output file. This demo
@@ -388,6 +410,7 @@ src/
     test-clip-selector.ts # Connected discovery and planning example
     test-context.ts       # Example request analysis
     produce-video.ts     # Runs planning, downloading, and rendering
+    render-production.ts # Renders a saved production JSON without planning
     test-renderer.ts      # Example test video renderer
     test-source-manager.ts # Downloads and checks selected source video files
     test-video-planner.ts # Example request analysis and production planning

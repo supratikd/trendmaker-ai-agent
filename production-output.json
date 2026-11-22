@@ -1,16 +1,15 @@
 {
   "context": {
-    "topic": "Jensen Huang Nvidia memes",
+    "topic": "jenson huang meme",
     "intent": "video_creation",
     "platform": "YouTube Shorts",
     "targetDuration": null,
     "targetAudience": null,
-    "contentStyle": "vertical, portrait",
+    "contentStyle": "compilation, vertical",
     "researchRequired": true,
     "actions": [
-      "Search for the most viewed Jensen Huang Nvidia memes",
-      "Select the best meme for a short video",
-      "Create a YouTube Short using the selected meme"
+      "research and find jenson huang meme clips",
+      "sequence selected clips into a compilation"
     ]
   },
   "candidates": [
@@ -21,8 +20,8 @@
       "channel": "The Limitless Channel",
       "publishedAt": "2026-11-12T23:14:46Z",
       "durationSeconds": 62,
-      "views": 1955669,
-      "likes": 25193,
+      "views": 1963126,
+      "likes": 25266,
       "comments": 0,
       "url": "https://www.youtube.com/watch?v=kEbLOA9cNIQ",
       "thumbnail": "https://i.ytimg.com/vi/kEbLOA9cNIQ/mqdefault.jpg"
@@ -34,7 +33,7 @@
       "channel": "Prof. J S Batra",
       "publishedAt": "2026-10-28T13:45:23Z",
       "durationSeconds": 22,
-      "views": 117880,
+      "views": 118032,
       "likes": null,
       "comments": 57,
       "url": "https://www.youtube.com/watch?v=o2PB1VmtlZE",
@@ -47,8 +46,8 @@
       "channel": "The Limitless Channel",
       "publishedAt": "2026-11-13T13:07:40Z",
       "durationSeconds": 23,
-      "views": 44230,
-      "likes": 765,
+      "views": 44289,
+      "likes": 766,
       "comments": 0,
       "url": "https://www.youtube.com/watch?v=zemSnpaynrs",
       "thumbnail": "https://i.ytimg.com/vi/zemSnpaynrs/mqdefault.jpg"
@@ -60,11 +59,24 @@
       "channel": "InternetGav",
       "publishedAt": "2026-11-11T05:30:09Z",
       "durationSeconds": 59,
-      "views": 29841,
+      "views": 29998,
       "likes": 265,
       "comments": 4,
       "url": "https://www.youtube.com/watch?v=dikS9AOjYms",
       "thumbnail": "https://i.ytimg.com/vi/dikS9AOjYms/mqdefault.jpg"
+    },
+    {
+      "videoId": "D8JZKUoUI2Q",
+      "license": "creativeCommon",
+      "title": "NVIDIA Investors Have ONE Question About Jensen Huang 😂📉 #Shorts",
+      "channel": "The Limitless Channel",
+      "publishedAt": "2026-11-12T14:40:14Z",
+      "durationSeconds": 7,
+      "views": 19480,
+      "likes": 134,
+      "comments": 0,
+      "url": "https://www.youtube.com/watch?v=D8JZKUoUI2Q",
+      "thumbnail": "https://i.ytimg.com/vi/D8JZKUoUI2Q/mqdefault.jpg"
     },
     {
       "videoId": "ca1Si-9J0uY",
@@ -73,24 +85,11 @@
       "channel": "LifeCouldBeAMeme",
       "publishedAt": "2026-11-10T18:06:40Z",
       "durationSeconds": 59,
-      "views": 12788,
-      "likes": 68,
+      "views": 13147,
+      "likes": 71,
       "comments": 0,
       "url": "https://www.youtube.com/watch?v=ca1Si-9J0uY",
       "thumbnail": "https://i.ytimg.com/vi/ca1Si-9J0uY/mqdefault.jpg"
-    },
-    {
-      "videoId": "p30P29SxQBA",
-      "license": "creativeCommon",
-      "title": "外媒：英伟达证实 黄仁勋陪同特朗普访华",
-      "channel": "中国新闻社",
-      "publishedAt": "2026-05-13T06:29:57Z",
-      "durationSeconds": 10,
-      "views": 10546,
-      "likes": 57,
-      "comments": 7,
-      "url": "https://www.youtube.com/watch?v=p30P29SxQBA",
-      "thumbnail": "https://i.ytimg.com/vi/p30P29SxQBA/mqdefault.jpg"
     },
     {
       "videoId": "A8jdVg2-reE",
@@ -99,46 +98,59 @@
       "channel": "Law Prep Tutorial - CLAT, AILET & Other Law Exams",
       "publishedAt": "2026-11-12T10:45:26Z",
       "durationSeconds": 49,
-      "views": 5809,
+      "views": 5811,
       "likes": 287,
       "comments": 6,
       "url": "https://www.youtube.com/watch?v=A8jdVg2-reE",
       "thumbnail": "https://i.ytimg.com/vi/A8jdVg2-reE/mqdefault.jpg"
     },
     {
-      "videoId": "W5yr7V-8MS4",
+      "videoId": "qvcolFpDFrw",
       "license": "creativeCommon",
-      "title": "Jensen Huang’s Long Game That Changed Technology",
-      "channel": "CEO Authority",
-      "publishedAt": "2026-02-08T09:49:51Z",
-      "durationSeconds": 16,
-      "views": 3488,
-      "likes": 30,
-      "comments": 1,
-      "url": "https://www.youtube.com/watch?v=W5yr7V-8MS4",
-      "thumbnail": "https://i.ytimg.com/vi/W5yr7V-8MS4/mqdefault.jpg"
+      "title": "[아직도 모르니?] 젠슨 황의 황당한 착각! 😂 | Jensen Huang's Big Misunderstanding",
+      "channel": "Golden Life",
+      "publishedAt": "2026-11-14T23:30:24Z",
+      "durationSeconds": 19,
+      "views": 693,
+      "likes": 6,
+      "comments": 0,
+      "url": "https://www.youtube.com/watch?v=qvcolFpDFrw",
+      "thumbnail": "https://i.ytimg.com/vi/qvcolFpDFrw/mqdefault.jpg"
     },
     {
-      "videoId": "M5GE1_7Tzmw",
+      "videoId": "Z7KqlMyti7o",
       "license": "creativeCommon",
-      "title": "TRUMP DEFENDE CEO DA NVIDIA EM MEIO SUSPEITA DE ESPIONAGEM.",
-      "channel": "Noticias Global",
-      "publishedAt": "2026-11-09T21:15:24Z",
-      "durationSeconds": 9,
-      "views": 2810,
-      "likes": 20,
+      "title": "My Name Is Jensen Huang | Gladiator Parody.  Hope he gets back his company  #nvidia #justice",
+      "channel": "Ohm's & Order",
+      "publishedAt": "2026-11-14T05:31:53Z",
+      "durationSeconds": 58,
+      "views": 347,
+      "likes": 7,
       "comments": 0,
-      "url": "https://www.youtube.com/watch?v=M5GE1_7Tzmw",
-      "thumbnail": "https://i.ytimg.com/vi/M5GE1_7Tzmw/mqdefault.jpg"
+      "url": "https://www.youtube.com/watch?v=Z7KqlMyti7o",
+      "thumbnail": "https://i.ytimg.com/vi/Z7KqlMyti7o/mqdefault.jpg"
+    },
+    {
+      "videoId": "Ktb5d2YXOd8",
+      "license": "creativeCommon",
+      "title": "Shocking! 😱😱 Jensen Huang leads NVIDIA carry the whole earth 震驚！黃仁勳帶領輝達扛起了整個地球 #shorts #funny #memes",
+      "channel": "SoloBuddhaing",
+      "publishedAt": "2025-12-02T01:59:32Z",
+      "durationSeconds": 13,
+      "views": 192,
+      "likes": 5,
+      "comments": 0,
+      "url": "https://www.youtube.com/watch?v=Ktb5d2YXOd8",
+      "thumbnail": "https://i.ytimg.com/vi/Ktb5d2YXOd8/mqdefault.jpg"
     }
   ],
   "selection": {
-    "title": "Jensen Huang Nvidia Memes Selection",
+    "title": "Ultimate Jensen Huang Meme Compilation",
     "clips": [
       {
         "order": 1,
         "videoId": "kEbLOA9cNIQ",
-        "reason": "This video is labeled with a Creative Commons license and features high view counts with a meme-focused title involving Nvidia CEO Jensen Huang.",
+        "reason": "This video features a humorous Austin Powers style parody of Jensen Huang popping the AI bubble, labeled with a Creative Commons license and a duration of 62 seconds, making it a strong candidate for an engaging meme compilation opening.",
         "license": "creativeCommon",
         "title": "NVIDIA CEO Jensen Huang POPS the AI Bubble… Austin Powers Style 😂🕺",
         "url": "https://www.youtube.com/watch?v=kEbLOA9cNIQ",
@@ -147,7 +159,7 @@
       {
         "order": 2,
         "videoId": "zemSnpaynrs",
-        "reason": "This candidate is labeled with a Creative Commons license, explicitly references a meme and sitcom parody style for Nvidia's Jensen Huang, and has a shorts-appropriate duration.",
+        "reason": "This Creative Commons-labeled short of 23 seconds frames Jensen Huang around an AI sitcom concept, offering a highly relevant comedic segment for the compilation.",
         "license": "creativeCommon",
         "title": "When NVIDIA's Jensen Huang decides the AI revolution needs its own sitcom! 😂",
         "url": "https://www.youtube.com/watch?v=zemSnpaynrs",
@@ -156,88 +168,108 @@
       {
         "order": 3,
         "videoId": "dikS9AOjYms",
-        "reason": "This is a Creative Commons-labeled video dedicated directly to best Jensen Huang memes, making it a relevant selection for compilation or feature.",
+        "reason": "Titled explicitly as Best Jensen Huang Memes with a Creative Commons license and a 59-second duration, this video is a prime candidate for direct inclusion in a meme-focused compilation.",
         "license": "creativeCommon",
         "title": "Best Jensen Huang Memes",
         "url": "https://www.youtube.com/watch?v=dikS9AOjYms",
+        "durationSeconds": 59
+      },
+      {
+        "order": 4,
+        "videoId": "ca1Si-9J0uY",
+        "reason": "Featuring Jensen Huang honeymoon themed memes under a Creative Commons license with a 59-second duration, this candidate adds unique variety to the compilation.",
+        "license": "creativeCommon",
+        "title": "Jensen Huang HONEYPOTTED memes",
+        "url": "https://www.youtube.com/watch?v=ca1Si-9J0uY",
         "durationSeconds": 59
       }
     ]
   },
   "plan": {
-    "videoTitle": "Jensen Huang Nvidia Memes That Broke The Internet",
-    "videoDescription": "Enjoy the funniest Jensen Huang Nvidia memes and parodies on the internet. A quick look at the humor behind the AI revolution.",
-    "targetAudience": "Tech enthusiasts, gamers, and meme lovers",
-    "videoDurationSeconds": 45,
+    "videoTitle": "The Ultimate Jensen Huang Meme Compilation",
+    "videoDescription": "Enjoy the funniest Jensen Huang and NVIDIA AI memes on the internet, from Austin Powers style parodies to sitcom concepts.",
+    "targetAudience": "Tech enthusiasts, AI developers, and meme lovers",
+    "videoDurationSeconds": 60,
     "aspectRatio": "9:16",
-    "visualStyle": "Fast-paced vertical meme compilation with dynamic captions and pop-culture overlays",
+    "visualStyle": "Fast-paced vertical meme compilation with smooth transitions",
     "scenes": [
       {
         "sceneNumber": 1,
-        "sceneTitle": "The Hook",
-        "durationSeconds": 10,
-        "purpose": "Grab user attention immediately with a recognizable Jensen Huang meme reference",
-        "visualDirection": "Fast cuts of Jensen Huang in leather jacket paired with energetic Austin Powers style dance edits",
-        "narration": "Have you ever wondered what happens when NVIDIA's Jensen Huang decides to run the AI revolution like a blockbuster movie?",
+        "sceneTitle": "Austin Powers AI Bubble Parody",
+        "durationSeconds": 15,
+        "purpose": "Hook the viewer with a high-energy, humorous opening parody.",
+        "visualDirection": "Show Jensen Huang popping the AI bubble in an Austin Powers style setup.",
+        "narration": "When Jensen Huang decides to shake up the entire tech world.",
         "onScreenText": [
-          "NVIDIA AI MEMES",
-          "WAIT FOR IT..."
+          "POPPING THE AI BUBBLE"
         ],
         "assetRequirements": [
-          "Dynamic text overlays",
-          "High energy background loop"
+          "Source video clip kEbLOA9cNIQ"
         ],
-        "audioDirection": "Upbeat synth-funk intro track with a comedic record scratch sound effect",
+        "audioDirection": "Upbeat comedic background music.",
         "sourceVideoIds": [
-          "kEbLOA9cNIQ",
-          "dikS9AOjYms"
+          "kEbLOA9cNIQ"
         ]
       },
       {
         "sceneNumber": 2,
-        "sceneTitle": "The Sitcom Parody",
-        "durationSeconds": 20,
-        "purpose": "Highlight the funny sitcom-style parody meme angle of Jensen Huang",
-        "visualDirection": "Vertical framing showcasing mock sitcom title cards and investor reaction clips",
-        "narration": "When the AI bubble pops but the CEO just drops another leather jacket and smiles for the sitcom camera.",
+        "sceneTitle": "AI Sitcom Concept",
+        "durationSeconds": 15,
+        "purpose": "Transition into the AI sitcom meme concept for comedic variety.",
+        "visualDirection": "Display Jensen Huang framed in a classic sitcom intro style.",
+        "narration": "Because every multi-trillion-dollar AI revolution definitely needs its own sitcom.",
         "onScreenText": [
-          "AI Sitcom Theme Intensifies",
-          "Investors: 📉"
+          "THE AI SITCOM"
         ],
         "assetRequirements": [
-          "Sitcom laugh track audio clip",
-          "Vertical video template"
+          "Source video clip zemSnpaynrs"
         ],
-        "audioDirection": "Classic 90s sitcom laugh track blending into electronic beats",
+        "audioDirection": "Sitcom laugh track and upbeat tunes.",
         "sourceVideoIds": [
           "zemSnpaynrs"
         ]
       },
       {
         "sceneNumber": 3,
-        "sceneTitle": "Call to Action",
+        "sceneTitle": "Best Jensen Huang Memes",
         "durationSeconds": 15,
-        "purpose": "Engage viewers and prompt them to comment their favorite meme",
-        "visualDirection": "Fast montage of top meme highlights with a clear subscribe and comment prompt",
-        "narration": "Which Jensen Huang meme is your absolute favorite? Drop it in the comments and subscribe for more tech laughs!",
+        "purpose": "Deliver a rapid-fire sequence of top community memes.",
+        "visualDirection": "Quick cuts highlighting the best internet reactions.",
+        "narration": "The internet's absolute favorite Jensen Huang moments, ranked for maximum laughs.",
         "onScreenText": [
-          "COMMENT YOUR FAVORITE MEME",
-          "SUBSCRIBE FOR MORE"
+          "BEST MEMES"
         ],
         "assetRequirements": [
-          "Subscribe button animation",
-          "End screen overlay"
+          "Source video clip dikS9AOjYms"
         ],
-        "audioDirection": "Upbeat concluding music sting fading out",
+        "audioDirection": "High-energy meme compilation beat.",
         "sourceVideoIds": [
           "dikS9AOjYms"
         ]
+      },
+      {
+        "sceneNumber": 4,
+        "sceneTitle": "Honeypotted Memes Conclusion",
+        "durationSeconds": 15,
+        "purpose": "Wrap up the compilation with unique honeypot-themed memes.",
+        "visualDirection": "Play out the remaining humorous clips to conclude the video.",
+        "narration": "You literally cannot escape the Jensen Huang meme economy.",
+        "onScreenText": [
+          "SUBSCRIBE FOR MORE"
+        ],
+        "assetRequirements": [
+          "Source video clip ca1Si-9J0uY"
+        ],
+        "audioDirection": "Outro music fade out.",
+        "sourceVideoIds": [
+          "ca1Si-9J0uY"
+        ]
       }
     ],
-    "musicDirection": "High-energy, upbeat electronic and funk fusion track suitable for fast-paced vertical shorts",
+    "musicDirection": "Use upbeat, trending comedic electronic tracks throughout the short.",
     "productionNotes": [
-      "Verify all source video license statuses and permissions before final publication.",
-      "Ensure captions are placed safely within the central vertical zone to avoid YouTube Shorts UI overlaps."
+      "Verify all Creative Commons licenses prior to final publishing.",
+      "Ensure smooth transition effects between each source video clip."
     ]
   },
   "warnings": []
