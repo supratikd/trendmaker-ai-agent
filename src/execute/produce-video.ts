@@ -1,6 +1,7 @@
 import "dotenv/config";
 import fs from "node:fs";
 import path from "node:path";
+import readline from "node:readline/promises";
 import {
   clearSourceAndOutputDirectories,
   downloadMissingSourceFiles,
@@ -8,6 +9,7 @@ import {
 import { uploadPost } from "../services/upload-post.js";
 import { renderProductionVideo } from "../production/video-renderer.js";
 import { exampleRequest } from "./example-request.js";
+import { analyzeUserRequest } from "../services/context-analyzer.js";
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
@@ -25,6 +27,7 @@ async function main(): Promise<void> {
 
   const fileOption = args.indexOf("--from-file");
   let production: unknown;
+  let uploadRequested = false;
   if (fileOption >= 0) {
     console.log("[STAGE 1/4] Loading production plan from file...");
     const inputPath = args[fileOption + 1];
@@ -37,15 +40,20 @@ async function main(): Promise<void> {
     }
     production = JSON.parse(fs.readFileSync(resolvedInput, "utf8"));
     console.log(`[STAGE 1/4] Production plan loaded: ${resolvedInput}`);
+    uploadRequested = /\b(?:upload|publish|post)\b/i.test(
+      args.filter((arg) => arg !== "--authorized-sources" && arg !== "--no-upload").join(" "),
+    );
   } else {
-    const ignored = new Set(["--authorized-sources"]);
+    const ignored = new Set(["--authorized-sources", "--no-upload"]);
     for (let index = 0; index < args.length; index++) {
       if (args[index] === "--from-file") ignored.add(args[index + 1]);
     }
     const request = args.filter((arg) => !ignored.has(arg)).join(" ").trim() || exampleRequest;
     console.log(`[STAGE 1/4] Request received: ${request}`);
+    const context = await analyzeUserRequest(request);
+    uploadRequested = context.uploadRequested;
     const { createVideoWorkflow } = await import("../services/video-workflow.js");
-    production = await createVideoWorkflow(request);
+    production = await createVideoWorkflow(request, context);
     const outputJson = path.resolve("production-output.json");
     fs.writeFileSync(outputJson, `${JSON.stringify(production, null, 2)}\n`, "utf8");
     console.log(`[STAGE 1/4] Production plan created and saved: ${outputJson}`);
@@ -71,6 +79,33 @@ async function main(): Promise<void> {
   console.log(`[STAGE 3/4] Production video created: ${outputPath}`);
   console.log("Source audio is retained when present; planned narration and text are not rendered.");
   console.log("Music direction is not rendered because no music asset was supplied.");
+
+  if (args.includes("--no-upload")) {
+    console.log("[STAGE 4/4] Upload skipped by --no-upload.");
+    return;
+  }
+  if (!uploadRequested) {
+    console.log("[STAGE 4/4] Upload not requested. The rendered video remains local.");
+    return;
+  }
+
+  const terminal = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+  let answer: string;
+  try {
+    answer = await terminal.question(
+      "Upload the completed video to YouTube as unlisted? (y/N): ",
+    );
+  } finally {
+    terminal.close();
+  }
+  if (!/^y(?:es)?$/i.test(answer.trim())) {
+    console.log("[STAGE 4/4] Upload cancelled. The rendered video remains at " +
+      `${outputPath}`);
+    return;
+  }
 
   console.log("[STAGE 4/4] Uploading the completed video to YouTube...");
   const upload = await uploadPost(outputPath, production);

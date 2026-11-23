@@ -18,6 +18,7 @@ const userContextSchema = z.object({
   targetAudience: z.string().trim().min(1).nullable(),
   contentStyle: z.string().trim().min(1).nullable(),
   researchRequired: z.boolean(),
+  uploadRequested: z.boolean(),
   actions: z.array(z.string().trim().min(1)).min(1),
 });
 
@@ -64,6 +65,7 @@ export async function analyzeUserRequest(
             nullable: true,
           },
           researchRequired: { type: "BOOLEAN" },
+          uploadRequested: { type: "BOOLEAN" },
           actions: {
             type: "ARRAY",
             items: { type: "STRING" },
@@ -77,6 +79,7 @@ export async function analyzeUserRequest(
           "targetAudience",
           "contentStyle",
           "researchRequired",
+          "uploadRequested",
           "actions",
         ],
       },

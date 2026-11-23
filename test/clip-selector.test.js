@@ -5,7 +5,7 @@ import { exampleRequest } from "../src/execute/example-request.ts";
 
 process.env.GEMINI_API_KEY = "test-key";
 const { analyzeUserRequest } = await import("../src/services/context-analyzer.ts");
-const { searchYouTubeCandidates } = await import("../src/mcp/youtube-client.ts");
+const { searchYouTubeCandidates } = await import("../src/mcp/youtube/youtube-mcp-client.ts");
 const { selectHighlights } = await import("../src/services/clip-selector.ts");
 const { createVideoWorkflow } = await import("../src/services/video-workflow.ts");
 
@@ -18,6 +18,7 @@ const context = {
   targetAudience: null,
   contentStyle: "meme",
   researchRequired: true,
+  uploadRequested: false,
   actions: ["Search for videos"],
 };
 const video = (videoId) => ({

@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import childProcess from "node:child_process";
 import { z } from "zod";
-import { verifyYouTubeShortsForReuse } from "../mcp/youtube-api.js";
+import { verifyYouTubeShortsForReuse } from "../integrations/youtube/youtube-api.js";
 
 interface ProductionClip {
   videoId: string;

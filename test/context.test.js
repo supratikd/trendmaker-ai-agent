@@ -5,7 +5,7 @@ import { exampleRequest } from "../src/execute/example-request.ts";
 process.env.GEMINI_API_KEY = "test-key";
 
 const { analyzeUserRequest } = await import("../src/services/context-analyzer.ts");
-const { discoverYouTubeVideos } = await import("../src/mcp/youtube-agent.ts");
+const { runTrendmakerAgent } = await import("../src/agent/trendmaker-agent.ts");
 
 const request = exampleRequest;
 const context = {
@@ -16,6 +16,7 @@ const context = {
   targetAudience: null,
   contentStyle: "meme",
   researchRequired: true,
+  uploadRequested: false,
   actions: ["Search for videos", "Rank by views"],
 };
 
@@ -64,7 +65,7 @@ test("discovery passes the analyzed context and original request to Gemini", asy
     return geminiResponse(bodies.length === 1 ? JSON.stringify(context) : "Discovery result");
   });
 
-  assert.equal(await discoverYouTubeVideos(request), "Discovery result");
+  assert.equal(await runTrendmakerAgent(request), "Discovery result");
   assert.equal(bodies.length, 2);
   const prompt = bodies[1].contents[0].parts[0].text;
   assert.ok(prompt.includes(request));
@@ -79,6 +80,6 @@ test("discovery stops when context analysis fails", async (t) => {
     return geminiResponse("{}");
   });
 
-  await assert.rejects(discoverYouTubeVideos(request));
+  await assert.rejects(runTrendmakerAgent(request));
   assert.equal(calls, 1);
 });

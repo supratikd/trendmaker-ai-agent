@@ -11,6 +11,32 @@ then uploads it to YouTube as an unlisted video for you to review.
 
 `Your idea → Gemini Context Analyzer → YouTube MCP search → Clip Selector → Scene Planner → Authorized sources → FFprobe → FFmpeg → Shareable 9:16 MP4`
 
+```mermaid
+flowchart TD
+    User[User Request] --> Agent[TrendMaker Agent]
+    Agent --> Analyzer[Gemini Context Analyzer]
+    Analyzer --> SharedClient[Shared MCP Client]
+    SharedClient --> YouTubeClient[YouTube MCP Client]
+    YouTubeClient --> YouTubeServer[YouTube MCP Server]
+    YouTubeServer --> YouTubeAPI[YouTube API Integration]
+    YouTubeAPI --> YouTubeClient
+    YouTubeClient --> Selector[Clip Selector]
+    Selector --> Planner[Production Planner]
+    Planner --> Sources[Authorized Source Verification]
+    Sources --> Renderer[FFprobe and FFmpeg]
+    Renderer --> Preview[Review Rendered MP4]
+    Preview --> Decision{Upload to YouTube?}
+    Decision -->|Yes - explicit confirmation| Upload[YouTube MCP Upload Tool]
+    Decision -->|No - generate only| Stop[Stop Without Upload]
+
+    subgraph FuturePlatforms[Future Platform Integrations]
+        Facebook[Facebook MCP Client and Server]
+        Instagram[Instagram MCP Client and Server]
+    end
+
+    SharedClient -. future platform routing .-> FuturePlatforms
+```
+
 > **Know what the AI has—and hasn't—seen:** discovery and selection use YouTube
 > metadata, not footage or transcripts. A Creative Commons label is not
 > independent proof of rights to everything in a video. Review the content,
@@ -79,6 +105,19 @@ After setup, provide a request in PowerShell:
 npm.cmd run produce -- --authorized-sources "Create a Jensen Huang meme video for YouTube Shorts"
 ```
 
+The request does not explicitly upload or publish, so the command generates
+the MP4 and stops without prompting for upload.
+
+To request upload, include the action explicitly:
+
+```powershell
+npm.cmd run produce -- --authorized-sources "Create a Jensen Huang meme video for YouTube Shorts and upload it"
+```
+
+When upload is requested, the command renders first and then asks for
+confirmation before uploading the MP4 as unlisted. `--no-upload` is also
+available to override a request and force generate-only behavior.
+
 To render a saved plan without repeating Gemini planning or YouTube search:
 
 ```powershell
@@ -146,7 +185,7 @@ OAuth authorization is separate from the `YOUTUBE_API_KEY` used for discovery.
 | --- | --- | --- |
 | Run the connected discovery, selection, and planning workflow | `npm run --silent workflow -- "<request>"` | Gemini and YouTube API keys |
 | Analyze a request | `npx tsx src/execute/test-context.ts "<request>"` | Gemini API key |
-| Discover candidates through MCP | `npx tsx src/execute/test-agent.ts "<request>"` | Gemini and YouTube API keys |
+| Run the TrendMaker MCP agent | `npm run agent:trendmaker -- "<request>"` | Gemini and YouTube API keys |
 | Generate a production plan | `npx tsx src/execute/test-video-planner.ts "<request>"` | Gemini API key |
 | Check/download authorized sources | `npx tsx src/execute/test-source-manager.ts` | YouTube API key and `yt-dlp` |
 | Render the standalone renderer demo | `npx tsx src/execute/test-renderer.ts` | FFmpeg |
@@ -189,10 +228,24 @@ current pricing.
 
 Use Node.js 20.3 or later. Enable the YouTube Data API v3 in Google Cloud,
 configure `YOUTUBE_API_KEY`, run `npm run build`, then configure an MCP client
-to launch `node` with the absolute path to `dist/mcp/youtube-server.js` as its
+to launch `node` with the absolute path to `dist/mcp/youtube/youtube-mcp-server.js` as its
 argument. Set `YOUTUBE_API_KEY` in the client's environment (or run from the
 directory containing `.env`). The Gemini API key does not authorize YouTube
 Data API access; enable that API and configure `YOUTUBE_API_KEY` separately.
+
+The server separates planning, rendering, and publishing into MCP tools:
+
+| Tool | Purpose | Side effect |
+| --- | --- | --- |
+| `search_youtube_videos` | Search and rank reusable candidate metadata | None |
+| `create_video_production_plan` | Analyze, select clips, and create a plan | None |
+| `render_youtube_short` | Verify sources and render the supplied plan | Creates an MP4 |
+| `preview_youtube_upload` | Generate YouTube title and description | None |
+| `upload_youtube_short` | Upload an MP4 to YouTube | Publishes a YouTube post |
+
+Rendering requires `authorizedSources: true`. Uploading requires
+`confirmUpload: true` and defaults to unlisted. MCP/LLM orchestration should
+always stop after generation unless the user separately confirms uploading.
 
 The `search_youtube_videos` tool accepts a nonblank `query` and optional
 `maxResults` (1–50, default 50). It fetches one short-duration search page,
@@ -215,7 +268,7 @@ twice, respecting a short `Retry-After` delay. Exhausted daily quota is not
 retried; wait for the Google Cloud quota reset or request additional quota.
 
 To run the example discovery agent, set both API keys and run
-`npx tsx src/execute/test-agent.ts`. It first analyzes the request with Gemini, then
+`npm run agent:trendmaker`. It first analyzes the request with Gemini, then
 uses the original request and analyzed context to guide discovery through the
 YouTube MCP tool. Run `npx tsx src/execute/test-context.ts` to inspect the analyzed
 context alone. Both examples accept an optional request. Analysis and
@@ -423,14 +476,23 @@ does not render production plans or require an API key.
 
 ```text
 src/
+  agent/
+    trendmaker-agent.ts # Gemini orchestration across MCP workflow tools
   config/
     constants.ts        # Shared application and YouTube constants
     env.ts              # Loads and validates environment variables
+  integrations/
+    facebook/           # Reserved for a future Facebook integration
+    instagram/          # Reserved for a future Instagram integration
+    youtube/
+      youtube-api.ts    # YouTube API requests and response validation
   mcp/
-    youtube-agent.ts    # Analyzes requests and runs MCP-based discovery
-    youtube-server.ts   # YouTube MCP stdio entry point
-    youtube-api.ts      # YouTube API requests and response validation
-    youtube-client.ts   # Retrieves structured MCP search candidates
+    trendmaker-mcp-client.ts # Shared stdio transport and MCP client lifecycle
+    youtube/
+      youtube-mcp-client.ts # YouTube-specific MCP client
+      youtube-mcp-server.ts # YouTube-specific MCP server
+    facebook/              # Reserved for future Facebook MCP client/server
+    instagram/             # Reserved for future Instagram MCP client/server
   prompts/
     research.ts         # Builds research, analysis, discovery, and planning prompts
   production/
@@ -446,17 +508,27 @@ src/
   index.ts              # CLI entry point
   execute/
     example-request.ts    # Shared default request for executable examples
-    test-agent.ts         # Example YouTube discovery
+    test-trendmaker-agent.ts # Example TrendMaker MCP agent
     test-clip-selector.ts # Connected discovery and planning example
     test-context.ts       # Example request analysis
     produce-video.ts     # Runs planning, downloading, rendering, and upload
-    render-production.ts # Renders a saved plan and uploads the result
+    render-production.ts # Renders a saved plan; upload is not automatic
     test-upload-post.ts  # Uploads output/output.mp4 to YouTube
     youtube-upload-auth.ts # Authorizes YouTube uploads using desktop OAuth
     test-renderer.ts      # Example test video renderer
     test-source-manager.ts # Downloads and checks selected source video files
     test-video-planner.ts # Example request analysis and production planning
 ```
+
+### Future platform MCPs
+
+Facebook and Instagram are reserved as future implementations. Their folders
+under `src/integrations/` and `src/mcp/` are placeholders only; no Facebook or
+Instagram API calls, MCP clients, MCP servers, or upload tools are implemented.
+
+When implemented, each platform will keep its own API integration, MCP client,
+and MCP server alongside the platform folder, while reusing
+`trendmaker-mcp-client.ts` for shared connection and lifecycle behavior.
 
 ## Scripts
 

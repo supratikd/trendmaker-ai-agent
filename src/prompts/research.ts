@@ -1,5 +1,5 @@
 import type { UserContext } from "../services/context-analyzer.js";
-import type { YouTubeCandidate } from "../mcp/youtube-client.js";
+import type { YouTubeCandidate } from "../mcp/youtube/youtube-mcp-client.js";
 import type { SelectedClip } from "../services/clip-selector.js";
 import { YOUTUBE } from "../config/constants.js";
 
@@ -26,6 +26,7 @@ Identify:
 - Target audience
 - Content style
 - Whether research is required
+- Whether the user explicitly requested uploading or publishing the finished video
 - Actions needed to fulfil the request
 
 Allowed intents:
@@ -39,6 +40,9 @@ video_discovery, video_creation, research, comparison
   duration if any, audience/style when supplied, and the request to sequence selected
   clips in the actions.
 - Use null for an unspecified audience, style, or duration, and provide at least one action.
+- Set uploadRequested to true only when the request explicitly says to upload, publish,
+  post, or share the finished video to YouTube. Generate/create/render requests without
+  an explicit upload action must set uploadRequested to false.
 - Mention explicitly requested vertical, portrait, horizontal, or landscape orientation in contentStyle.
 Return ONLY valid JSON.
 
@@ -158,6 +162,17 @@ Your responsibilities:
 - Understand the user's content discovery request.
 - Use the analyzed context to guide discovery, while preserving the original request.
 - Search for Shorts-length candidates when video discovery is requested.
+- Use create_video_production_plan when the user asks to create or plan a video.
+- The analyzed context includes uploadRequested. If it is false, stop after planning
+  or rendering and never offer or start YouTube upload.
+- If uploadRequested is true, generate and render first, preview metadata, tell the
+  user the upload is unlisted by default, and ask for explicit confirmation before calling
+  upload_youtube_short.
+- Use render_youtube_short only after the user authorizes reuse of the selected sources.
+- Never upload or publish unless the user explicitly asks for upload/publishing.
+- Before upload, use preview_youtube_upload and ask for explicit confirmation.
+- upload_youtube_short requires confirmUpload=true and should default to unlisted.
+- For a generate-only request, stop after planning or rendering; do not preview or upload.
 - Explain that duration filtering cannot confirm a video's vertical Shorts format.
 - Use actual MCP tool results.
 - Never invent video statistics.

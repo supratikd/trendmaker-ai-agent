@@ -1,35 +1,23 @@
 
 import { GoogleGenAI, mcpToTool } from "@google/genai";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 
 import { env } from "../config/env.js";
 import { createYouTubeDiscoveryPrompt } from "../prompts/research.js";
 import { analyzeUserRequest } from "../services/context-analyzer.js";
+import { withTrendmakerMcpClient } from "../mcp/trendmaker-mcp-client.js";
 
 const ai = new GoogleGenAI({
   apiKey: env.GEMINI_API_KEY,
 });
 
-export async function discoverYouTubeVideos(
+export async function runTrendmakerAgent(
   userRequest: string,
 ): Promise<string> {
   const context = await analyzeUserRequest(userRequest);
 
-  const mcpClient = new Client({
-    name: "trendmaker-agent",
-    version: "1.0.0",
-  });
-
-  const transport = new StdioClientTransport({
-    command: process.execPath,
-    args: ["--import", "tsx", "src/mcp/youtube-server.ts"],
-    cwd: process.cwd(),
-  });
-
-  await mcpClient.connect(transport);
-
-  try {
+  return withTrendmakerMcpClient({
+    args: ["--import", "tsx", "src/mcp/youtube/youtube-mcp-server.ts"],
+  }, async (mcpClient) => {
     // Discover the tools exposed by our MCP server.
     const { tools } = await mcpClient.listTools();
 
@@ -54,7 +42,5 @@ export async function discoverYouTubeVideos(
     }
     return response.text;
 
-  } finally {
-    await mcpClient.close();
-  }
+  });
 }

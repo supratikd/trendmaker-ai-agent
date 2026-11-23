@@ -3,7 +3,7 @@ export const APPLICATION = {
 } as const;
 
 export const YOUTUBE = {
-  MCP_SERVER_NAME: "youtube-discovery-server",
+  MCP_SERVER_NAME: "youtube-mcp-server",
   API_BASE: "https://www.googleapis.com/youtube/v3/",
   REQUEST_TIMEOUT_MS: 15_000,
   MAX_REQUEST_RETRIES: 2,
