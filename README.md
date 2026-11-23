@@ -14,7 +14,7 @@ then uploads it to YouTube as an unlisted video for you to review.
 ```mermaid
 flowchart TD
     User[User Request] --> Agent[TrendMaker Agent]
-    Agent --> Analyzer[Gemini Context Analyzer]
+    Agent --> Analyzer[Context Analyzer]
     Analyzer --> SharedClient[Shared MCP Client]
     SharedClient --> YouTubeClient[YouTube MCP Client]
     YouTubeClient --> YouTubeServer[YouTube MCP Server]
