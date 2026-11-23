@@ -12,6 +12,7 @@ const context = {
   targetAudience: null,
   contentStyle: "meme",
   researchRequired: true,
+  uploadRequested: false,
   actions: ["Plan a video"],
 };
 

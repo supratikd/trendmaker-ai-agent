@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import { searchYouTubeVideos, verifyYouTubeShortsForReuse } from "../src/mcp/youtube-api.ts";
+import { searchYouTubeVideos, verifyYouTubeShortsForReuse } from "../src/integrations/youtube/youtube-api.ts";
 
 const signal = () => new AbortController().signal;
 const json = (body, status = 200, headers = {}) =>
@@ -193,7 +193,7 @@ test("retries temporary throttling but fails immediately when YouTube quota is e
 test("stdio MCP server validates inputs and reports missing credentials", async () => {
   const transport = new StdioClientTransport({
     command: process.execPath,
-    args: ["--import", "tsx", "src/mcp/youtube-server.ts"],
+    args: ["--import", "tsx", "src/mcp/youtube/youtube-mcp-server.ts"],
     env: { ...process.env, YOUTUBE_API_KEY: "" },
     stderr: "pipe",
   });
@@ -202,6 +202,10 @@ test("stdio MCP server validates inputs and reports missing credentials", async 
     await client.connect(transport);
     const tools = await client.listTools();
     assert.ok(tools.tools.some((tool) => tool.name === "search_youtube_videos"));
+    assert.ok(tools.tools.some((tool) => tool.name === "create_video_production_plan"));
+    assert.ok(tools.tools.some((tool) => tool.name === "render_youtube_short"));
+    assert.ok(tools.tools.some((tool) => tool.name === "preview_youtube_upload"));
+    assert.ok(tools.tools.some((tool) => tool.name === "upload_youtube_short"));
     const invalid = await client.callTool({ name: "search_youtube_videos", arguments: { query: "   " } });
     assert.equal(invalid.isError, true);
     const missing = await client.callTool({

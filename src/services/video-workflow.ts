@@ -1,12 +1,16 @@
-import { searchYouTubeCandidates } from "../mcp/youtube-client.js";
+import { searchYouTubeCandidates } from "../mcp/youtube/youtube-mcp-client.js";
 import { YOUTUBE } from "../config/constants.js";
 import { selectHighlights } from "./clip-selector.js";
 import { analyzeUserRequest } from "./context-analyzer.js";
+import type { UserContext } from "./context-analyzer.js";
 import { generateVideoProductionPlan } from "./video-production-planner.js";
 
-export async function createVideoWorkflow(userRequest: string) {
+export async function createVideoWorkflow(
+  userRequest: string,
+  existingContext?: UserContext,
+) {
   console.log("[WORKFLOW 1/4] Analyzing the request with Gemini...");
-  const context = await analyzeUserRequest(userRequest);
+  const context = existingContext ?? await analyzeUserRequest(userRequest);
   console.log(`[WORKFLOW 1/4] Request analyzed. Topic: "${context.topic}"`);
 
   console.log("[WORKFLOW 2/4] Connecting to MCP and searching YouTube...");

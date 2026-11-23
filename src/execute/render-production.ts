@@ -1,7 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
 import { renderProductionVideo } from "../production/video-renderer.js";
-import { uploadPost } from "../services/upload-post.js";
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
@@ -19,12 +18,10 @@ async function main(): Promise<void> {
   console.log(`[RENDER] Loaded production JSON: ${inputPath}`);
   const outputPath = await renderProductionVideo(production);
   console.log(`[RENDER] Production video created: ${outputPath}`);
-  console.log("[UPLOAD] Uploading the completed video to YouTube...");
-  const upload = await uploadPost(outputPath, production);
-  console.log(`[UPLOAD] YouTube upload complete (${upload.privacyStatus}): ${upload.url}`);
+  console.log("[RENDER] Upload not requested. The MP4 remains local.");
 }
 
 main().catch((error: unknown) => {
-  console.error("Failed to render and upload production JSON:", error);
+  console.error("Failed to render production JSON:", error);
   process.exitCode = 1;
 });

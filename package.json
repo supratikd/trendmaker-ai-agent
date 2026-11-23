@@ -14,7 +14,8 @@
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test test/*.test.js",
-    "mcp:youtube": "node dist/mcp/youtube-server.js"
+    "mcp:youtube": "node dist/mcp/youtube/youtube-mcp-server.js",
+    "agent:trendmaker": "tsx src/execute/test-trendmaker-agent.ts"
   },
   "keywords": [
     "gemini",

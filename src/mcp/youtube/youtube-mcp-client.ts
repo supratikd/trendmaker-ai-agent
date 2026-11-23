@@ -1,10 +1,9 @@
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { z } from "zod";
-import { youtubeVideoIdSchema, youtubeWatchUrl } from "./youtube-api.js";
-import type { UserContext } from "../services/context-analyzer.js";
-import { parseStructuredJson } from "../services/structured-json.js";
-import { YOUTUBE } from "../config/constants.js";
+import { youtubeVideoIdSchema, youtubeWatchUrl } from "../../integrations/youtube/youtube-api.js";
+import type { UserContext } from "../../services/context-analyzer.js";
+import { parseStructuredJson } from "../../services/structured-json.js";
+import { YOUTUBE } from "../../config/constants.js";
+import { withTrendmakerMcpClient } from "../trendmaker-mcp-client.js";
 
 export const youtubeCandidateSchema = z.object({
   videoId: youtubeVideoIdSchema,
@@ -41,17 +40,12 @@ export async function searchYouTubeCandidates(
     throw new Error("Cannot search YouTube without a topic.");
   }
   const query = [topic, context.contentStyle?.trim()].filter(Boolean).join(" ");
-  const client = new Client({ name: "trendmaker-clip-selector", version: "1.0.0" });
-  const transport = new StdioClientTransport({
-    command: process.execPath,
-    args: ["--import", "tsx", "src/mcp/youtube-server.ts"],
-    cwd: process.cwd(),
-  });
-
   console.log("[MCP] Starting local YouTube MCP server...");
-  await client.connect(transport);
-  console.log("[MCP] Server connected. Calling search_youtube_videos...");
-  try {
+  return withTrendmakerMcpClient({
+    clientName: "trendmaker-youtube-mcp-client",
+    args: ["--import", "tsx", "src/mcp/youtube/youtube-mcp-server.ts"],
+  }, async (client) => {
+    console.log("[MCP] Server connected. Calling search_youtube_videos...");
     const candidates = new Map<string, YouTubeCandidate>();
     for (const searchQuery of [...new Set([query, topic])]) {
       console.log(`[MCP] Searching YouTube: "${searchQuery}"`);
@@ -72,11 +66,11 @@ export async function searchYouTubeCandidates(
       }
       if (candidates.size >= YOUTUBE.MAX_SELECTED_SHORTS) break;
     }
-    return [...candidates.values()]
+    const results = [...candidates.values()]
       .sort((a, b) => (b.views ?? -1) - (a.views ?? -1))
       .slice(0, YOUTUBE.MAX_RETURNED_RESULTS);
-  } finally {
-    await client.close();
+    return results;
+  }).finally(() => {
     console.log("[MCP] Search complete. Local MCP server closed.");
-  }
+  });
 }

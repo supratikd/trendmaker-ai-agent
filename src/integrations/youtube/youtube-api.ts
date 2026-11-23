@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { YOUTUBE } from "../config/constants.js";
+import { YOUTUBE } from "../../config/constants.js";
 
 export class YouTubeError extends Error {}
 
